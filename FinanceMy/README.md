@@ -71,13 +71,35 @@ File `firebase.json` sudah memiliki SPA rewrite ke `index.html`.
 
 ## Deploy Netlify
 
-1. Hubungkan repository ke Netlify.
-2. Build command: `npm run build`.
-3. Publish directory: `dist`.
-4. Tambahkan seluruh `VITE_FIREBASE_*` pada Environment Variables.
+Repository mengikuti struktur yang sama dengan proyek Activity dan ApplyJob:
+
+```text
+FinanceMy/
+├── netlify.toml
+└── FinanceMy/
+    ├── package.json
+    ├── public/
+    ├── src/
+    └── vite.config.js
+```
+
+File `netlify.toml` di root repository sudah menetapkan:
+
+- Base directory: `FinanceMy`
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Node.js: versi 22
+- SPA fallback: seluruh route diarahkan ke `/index.html`
+
+Langkah deployment:
+
+1. Hubungkan root repository `D:\Project\FinanceMy` ke Netlify.
+2. Biarkan konfigurasi build dibaca dari `netlify.toml`.
+3. Tambahkan seluruh `VITE_FIREBASE_*` pada Environment Variables.
+4. Trigger **Clear cache and deploy site**.
 5. Tambahkan domain Netlify ke Firebase Authentication Authorized domains.
 
-Untuk SPA fallback Netlify, buat rewrite `/* /index.html 200` melalui konfigurasi dashboard atau file `_redirects` di folder `public`.
+File `public/_redirects` tetap disediakan sebagai fallback tambahan untuk React Router.
 
 ## Struktur penting
 
