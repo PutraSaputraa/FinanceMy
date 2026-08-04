@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { ArrowRight, CalendarDays, Check, CircleDollarSign, CreditCard, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, TrendingDown, TrendingUp, UserRound, WalletCards } from 'lucide-react'
+import { ArrowRight, Check, CreditCard, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const messages = {
@@ -47,21 +47,18 @@ export default function AuthPage({ mode = 'login' }) {
 
   return <main className="auth-reference-page">
     <section className="auth-reference-visual">
-      <Link className="reference-brand" to="/"><span><CreditCard /></span>Finance<b>My</b></Link>
-      <div className="reference-hero">
-        <span className="reference-kicker"><Check /> CATAT. PAHAMI. RENCANAKAN.</span>
-        <h1>Ruang tenang untuk keuangan yang lebih <em>terarah.</em></h1>
-        <p>Pantau saldo, pahami kebiasaan, dan simpan semua rencana finansialmu dalam satu tempat.</p>
-
-        <article className="reference-summary-card">
-          <header><div><small>Ringkasan bulan ini</small><strong>Rp8.050.000</strong></div><span><b>68%</b><small>budget</small></span></header>
-          <div className="reference-summary-row"><i className="income"><TrendingUp /></i><span><strong>Pemasukan</strong><small>Agustus 2026</small></span><b>+Rp6.000.000</b></div>
-          <div className="reference-summary-row"><i className="expense"><TrendingDown /></i><span><strong>Pengeluaran</strong><small>Agustus 2026</small></span><b>−Rp903.500</b></div>
-          <div className="reference-summary-row"><i className="balance"><CircleDollarSign /></i><span><strong>Sisa budget</strong><small>27 hari tersisa</small></span><b>Rp1.532.500</b></div>
-        </article>
-
-        <div className="reference-mini-stats"><span><WalletCards/><strong>4 akun<small>Semua aktif</small></strong></span><span><CalendarDays/><strong>19 hari<small>Aman hingga gajian</small></strong></span></div>
+      <Link className="auth-brand" to="/"><span><CreditCard size={23}/></span>Finance<b>My</b></Link>
+      <div className="auth-copy">
+        <span className="auth-kicker"><Sparkles size={15}/> Keuangan jadi lebih jelas</span>
+        <h1>Tenang dengan uang.<br/><em>Yakin dengan rencana.</em></h1>
+        <p>Kelola uangmu, pahami kebiasaanmu, dan rencanakan masa depanmu.</p>
+        <div className="auth-benefits">
+          <span><Check/>Semua saldo dalam satu pandangan</span>
+          <span><Check/>Budget yang menyesuaikan kebiasaanmu</span>
+          <span><Check/>Privasi data terlindungi Firebase</span>
+        </div>
       </div>
+      <div className="auth-quote"><div className="quote-icon">“</div><p>Sejak mencatat dengan rutin, saya akhirnya tahu bukan cuma berapa uang yang tersisa—tetapi juga ke mana uang saya akan pergi.</p><span className="quote-avatar">A</span><strong>Alya Kusuma<small>Pengguna FinanceMy</small></strong></div>
     </section>
 
     <section className="auth-reference-form-wrap">
