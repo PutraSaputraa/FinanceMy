@@ -21,7 +21,11 @@ export function AuthProvider({ children }) {
     login: async (email, password) => { const result = await loginUser(email, password); setUser(result.user); return result },
     register: registerUser,
     resetPassword,
-    demoLogin: () => { sessionStorage.setItem('financemy-demo', '1'); setUser(demoUser) },
+    demoLogin: async () => {
+      if (auth.currentUser) await logoutUser()
+      sessionStorage.setItem('financemy-demo', '1')
+      setUser(demoUser)
+    },
     logout: async () => { sessionStorage.removeItem('financemy-demo'); if (!user?.isDemo) await logoutUser(); setUser(null) },
   }), [user, loading])
 

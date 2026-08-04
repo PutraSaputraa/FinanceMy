@@ -4,6 +4,9 @@ import { BarChart3, Bell, CalendarClock, CircleDollarSign, CreditCard, Goal, Han
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useFinance } from '../../context/FinanceContext'
+import { calculateCashFlow } from '../../utils/calculations'
+import { getMonthInfo, getPeriodSummary } from '../../utils/analytics'
+import { formatCurrency } from '../../utils/formatters'
 import Toast from '../common/Toast'
 
 const navigation = [
@@ -20,14 +23,29 @@ const navigation = [
 
 export default function AppLayout() {
   const [drawer, setDrawer] = useState(false)
-  const [notifications, setNotifications] = useState(false)
+  const [notificationOpen, setNotificationOpen] = useState(false)
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const { toast } = useFinance()
+  const { accounts, transactions, budgets, bills, toast } = useFinance()
   const navigate = useNavigate()
   const location = useLocation()
   const active = navigation.find((item) => location.pathname.startsWith(item.path))
   const doLogout = async () => { await logout(); navigate('/login') }
+  const now = new Date()
+  const month = getMonthInfo(now)
+  const totalBalance = accounts.filter((account) => account.isActive).reduce((sum, account) => sum + Number(account.currentBalance || 0), 0)
+  const currentExpense = getPeriodSummary(transactions, now).expense
+  const dailyAverage = currentExpense / Math.max(month.daysElapsed, 1)
+  const obligations = bills.filter((bill) => !['Sudah dibayar', 'Lunas', 'Dibatalkan'].includes(bill.status)).reduce((sum, bill) => sum + Number(bill.amount || 0), 0)
+  const forecast = calculateCashFlow({ balance: totalBalance, obligations, dailyAverage, days: month.daysRemaining })
+  const safeDays = dailyAverage ? Math.max(Math.floor((totalBalance - obligations) / dailyAverage), 0) : month.daysRemaining
+  const snapshotProgress = totalBalance ? Math.max(Math.min((forecast.projectedBalance / totalBalance) * 100, 100), 0) : 0
+  const notificationItems = [
+    ...bills.filter((bill) => !['Sudah dibayar', 'Lunas', 'Dibatalkan'].includes(bill.status)).map((bill) => ({ tone: 'warning', title: `${bill.title || bill.name} belum dibayar`, detail: `${formatCurrency(bill.amount)} • ${bill.account || 'Akun belum dipilih'}` })),
+    ...budgets.filter((budget) => budget.amount && (budget.spent / budget.amount) >= .8).map((budget) => ({ tone: (budget.spent / budget.amount) >= 1 ? 'danger' : 'warning', title: `Budget ${budget.name} terpakai ${Math.round((budget.spent / budget.amount) * 100)}%`, detail: `Tersisa ${formatCurrency(Math.max(budget.amount - budget.spent, 0))}` })),
+    ...accounts.filter((account) => account.isActive && Number(account.currentBalance || 0) < 100000).map((account) => ({ tone: 'danger', title: `Saldo ${account.name} rendah`, detail: `Saldo saat ini ${formatCurrency(account.currentBalance)}` })),
+  ].slice(0, 5)
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Pengguna'
 
   return <div className="app-shell">
     <aside className={`sidebar ${drawer ? 'open' : ''}`}>
@@ -38,9 +56,9 @@ export default function AppLayout() {
         <p className="nav-caption">PERENCANAAN</p>
         {navigation.slice(5).map(({ label, path, icon: Icon }) => <NavLink key={path} to={path} onClick={() => setDrawer(false)}><Icon size={19} /><span>{label}</span></NavLink>)}
       </nav>
-      <div className="cash-snapshot"><span>Saldo hingga gajian</span><strong>Rp6.248.000</strong><small>Estimasi, bukan nilai pasti</small><div className="mini-track"><i /></div><p>Aman untuk 19 hari ke depan</p></div>
+      <div className="cash-snapshot"><span>Proyeksi akhir bulan</span><strong>{formatCurrency(forecast.projectedBalance)}</strong><small>Estimasi, bukan nilai pasti</small><div className="mini-track"><i style={{width:`${snapshotProgress}%`}} /></div><p>{forecast.projectedBalance >= 0 ? `Aman untuk sekitar ${Math.min(safeDays, month.daysRemaining)} hari ke depan` : 'Perlu perhatian pada pengeluaran mendatang'}</p></div>
       <button className="user-menu" onClick={doLogout} title="Keluar dari akun">
-        <span className="user-initial">{user?.displayName?.charAt(0) || 'R'}</span><span><strong>{user?.displayName || 'Raka Pratama'}</strong><small>{user?.email}</small></span><LogOut size={17} />
+        <span className="user-initial">{displayName.charAt(0).toUpperCase()}</span><span><strong>{displayName}</strong><small>{user?.email}</small></span><LogOut size={17} />
       </button>
     </aside>
     {drawer && <button className="drawer-scrim" onClick={() => setDrawer(false)} aria-label="Tutup menu" />}
@@ -50,8 +68,8 @@ export default function AppLayout() {
         <label className="search-box"><Search size={18} /><input aria-label="Cari" placeholder="Cari transaksi, akun, atau budget..." /><kbd>⌘ K</kbd></label>
         <div className="top-actions">
           <button className="icon-btn" onClick={toggleTheme} aria-label="Ganti tema">{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>
-          <div className="notification-wrap"><button className="icon-btn notification-btn" onClick={() => setNotifications(!notifications)} aria-label="Notifikasi"><Bell size={19} /><i>3</i></button>
-            {notifications && <div className="notification-popover"><div><strong>Notifikasi</strong><button>Tandai dibaca</button></div><p><span className="notif-dot warning" />WiFi jatuh tempo dalam 3 hari<small>Nominal Rp350.000 • BSI</small></p><p><span className="notif-dot danger" />Budget transportasi terpakai 87%<small>Tersisa Rp97.500 bulan ini</small></p><p><span className="notif-dot success" />Target dana darurat bertambah<small>Progress saat ini 42%</small></p></div>}
+          <div className="notification-wrap"><button className="icon-btn notification-btn" onClick={() => setNotificationOpen(!notificationOpen)} aria-label="Notifikasi"><Bell size={19} />{notificationItems.length > 0 && <i>{notificationItems.length}</i>}</button>
+            {notificationOpen && <div className="notification-popover"><div><strong>Notifikasi</strong></div>{notificationItems.length ? notificationItems.map((item, index)=><p key={`${item.title}-${index}`}><span className={`notif-dot ${item.tone}`} />{item.title}<small>{item.detail}</small></p>) : <p>Belum ada notifikasi<small>Semua kondisi keuanganmu akan dipantau di sini.</small></p>}</div>}
           </div>
           <button className="primary-btn top-add" onClick={() => navigate('/transaksi?add=true')}><Plus size={18} /> Tambah transaksi</button>
         </div>

@@ -1,10 +1,10 @@
 import { addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
-export function subscribeCollection(userId, collectionName, callback, sortField) {
+export function subscribeCollection(userId, collectionName, callback, sortField, onError) {
   const ref = collection(db, 'users', userId, collectionName)
   const q = sortField ? query(ref, orderBy(sortField, 'desc')) : ref
-  return onSnapshot(q, (snapshot) => callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))))
+  return onSnapshot(q, (snapshot) => callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))), onError)
 }
 
 export async function addAccount(userId, values) {
@@ -19,6 +19,14 @@ export async function addBudget(userId, values) {
   return addDoc(collection(db, 'users', userId, 'budgets'), {
     ...values, amount: Number(values.amount), warningThreshold: 80, isActive: true,
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  })
+}
+
+export async function addUserRecord(userId, collectionName, values) {
+  return addDoc(collection(db, 'users', userId, collectionName), {
+    ...values,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   })
 }
 

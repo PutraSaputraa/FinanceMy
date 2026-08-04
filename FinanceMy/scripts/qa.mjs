@@ -12,7 +12,7 @@ await page.goto('http://127.0.0.1:4173/login', { waitUntil: 'networkidle' })
 await page.screenshot({ path: 'artifacts/financemy-login.png', fullPage: true })
 await page.getByRole('button', { name: 'Lihat dashboard demo' }).click()
 await page.waitForURL('**/dashboard')
-await page.getByRole('heading', { name: /Selamat pagi/ }).waitFor()
+await page.getByRole('heading', { name: /Selamat (pagi|siang|sore|malam)/ }).waitFor()
 await page.screenshot({ path: 'artifacts/financemy-dashboard.png', fullPage: true })
 
 await page.getByRole('link', { name: 'Transaksi', exact: true }).click()

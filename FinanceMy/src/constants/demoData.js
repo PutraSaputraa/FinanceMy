@@ -43,3 +43,15 @@ export const upcomingBills = [
   { id: 'netflix', title: 'Netflix', date: '2026-08-12', amount: 186000, account: 'Blu', status: '7 hari lagi', tone: 'neutral' },
   { id: 'electric', title: 'Listrik', date: '2026-08-15', amount: 425000, account: 'BSI', status: '10 hari lagi', tone: 'neutral' },
 ]
+
+export const demoGoals = [
+  { id: 'goal-emergency', name: 'Dana darurat', target: 30000000, saved: 12600000, deadline: 'Des 2027', color: '#087f5b', priority: 'Prioritas tinggi', icon: 'shield' },
+  { id: 'goal-laptop', name: 'Laptop kerja', target: 18000000, saved: 9900000, deadline: 'Feb 2027', color: '#2271b3', priority: 'Prioritas sedang', icon: 'laptop' },
+  { id: 'goal-home', name: 'Uang muka rumah', target: 150000000, saved: 32500000, deadline: 'Agu 2030', color: '#8b5cf6', priority: 'Jangka panjang', icon: 'home' },
+]
+
+export const demoDebtRecords = {
+  utang: [{ id: 'debt-family', name: 'Pinjaman keluarga', total: 5000000, remaining: 2500000, due: '15 Des 2026', monthly: 500000 }],
+  piutang: [{ id: 'receivable-dimas', name: 'Dana talangan — Dimas', total: 1200000, remaining: 800000, due: '20 Agu 2026', monthly: 400000 }],
+  cicilan: [{ id: 'installment-laptop', name: 'Laptop kerja', total: 20400000, remaining: 11900000, due: '10 tiap bulan', monthly: 850000, cash: 18000000 }],
+}

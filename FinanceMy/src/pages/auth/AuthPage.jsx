@@ -39,7 +39,7 @@ export default function AuthPage({ mode = 'login' }) {
     }
   }
 
-  const enterDemo = () => { demoLogin(); navigate('/dashboard') }
+  const enterDemo = async () => { await demoLogin(); navigate('/dashboard') }
   const isLogin = mode === 'login'
   const isRegister = mode === 'register'
   const title = isLogin ? 'Masuk ke akunmu' : isRegister ? 'Buat akun barumu' : 'Atur ulang password'
