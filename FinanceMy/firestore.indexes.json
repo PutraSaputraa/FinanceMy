@@ -1,0 +1,9 @@
+{
+  "indexes": [
+    {"collectionGroup":"transactions","queryScope":"COLLECTION","fields":[{"fieldPath":"transactionDate","order":"DESCENDING"},{"fieldPath":"type","order":"ASCENDING"}]},
+    {"collectionGroup":"transactions","queryScope":"COLLECTION","fields":[{"fieldPath":"accountId","order":"ASCENDING"},{"fieldPath":"transactionDate","order":"DESCENDING"}]},
+    {"collectionGroup":"bills","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"dueDate","order":"ASCENDING"}]},
+    {"collectionGroup":"recurringTransactions","queryScope":"COLLECTION","fields":[{"fieldPath":"isActive","order":"ASCENDING"},{"fieldPath":"nextDate","order":"ASCENDING"}]}
+  ],
+  "fieldOverrides": []
+}

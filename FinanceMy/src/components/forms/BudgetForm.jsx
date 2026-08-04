@@ -1,0 +1,10 @@
+import { useForm } from 'react-hook-form'
+import { useFinance } from '../../context/FinanceContext'
+
+export default function BudgetForm({ onDone }) {
+  const { addDemoBudget } = useFinance()
+  const { register, handleSubmit, watch, formState:{errors} } = useForm({defaultValues:{name:'Makan & Minum',method:'adaptive',color:'#087f5b'}})
+  const method = watch('method')
+  const submit = async (values) => { await addDemoBudget(values); onDone() }
+  return <form className="finance-form" onSubmit={handleSubmit(submit)}><div className="form-grid"><label>Nama budget<select {...register('name')}><option>Makan & Minum</option><option>Transportasi</option><option>Hiburan</option><option>Langganan</option><option>Kebutuhan Rumah</option></select></label><label>Nominal per bulan<input type="number" min="1" placeholder="0" {...register('amount',{required:'Nominal wajib diisi.',min:{value:1,message:'Nominal harus positif.'}})}/>{errors.amount&&<small className="field-error">{errors.amount.message}</small>}</label><label>Metode<select {...register('method')}><option value="adaptive">Adaptive</option><option value="fixed">Fixed</option><option value="rollover">Rollover</option><option value="saving">Saving</option><option value="hybrid">Hybrid</option></select></label><label>Warna<input className="color-input" type="color" {...register('color')}/></label>{method==='hybrid'&&<><label>Dialihkan ke besok (%)<input type="number" min="0" max="100" {...register('rolloverPercentage',{valueAsNumber:true})}/></label><label>Dicatat sebagai hemat (%)<input type="number" min="0" max="100" {...register('savingPercentage',{validate:(value,form)=>Number(value)+Number(form.rolloverPercentage)===100||'Total persentase harus 100%.'})}/>{errors.savingPercentage&&<small className="field-error">{errors.savingPercentage.message}</small>}</label></>}</div><div className="form-actions"><button type="button" className="secondary-btn" onClick={onDone}>Batal</button><button className="primary-btn">Buat budget</button></div></form>
+}
