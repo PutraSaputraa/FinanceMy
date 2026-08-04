@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, UserRound } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, CircleDollarSign, CreditCard, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, TrendingDown, TrendingUp, UserRound, WalletCards } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 
 const messages = {
@@ -39,68 +39,63 @@ export default function AuthPage({ mode = 'login' }) {
     }
   }
 
-  const enterDemo = () => {
-    demoLogin()
-    navigate('/dashboard')
-  }
-
+  const enterDemo = () => { demoLogin(); navigate('/dashboard') }
   const isLogin = mode === 'login'
   const isRegister = mode === 'register'
   const title = isLogin ? 'Masuk ke akunmu' : isRegister ? 'Buat akun barumu' : 'Atur ulang password'
-  const subtitle = isLogin
-    ? 'Lanjutkan progres keuanganmu hari ini.'
-    : isRegister
-      ? 'Mulai kelola uang dan rencanakan masa depanmu.'
-      : 'Kami akan mengirim tautan pemulihan ke emailmu.'
+  const subtitle = isLogin ? 'Lanjutkan progres keuanganmu hari ini.' : isRegister ? 'Mulai kelola uangmu dengan lebih terarah.' : 'Kami akan mengirim tautan pemulihan ke emailmu.'
 
-  return <main className="simple-auth-page">
-    <section className="simple-auth-card">
-      {mode === 'forgot' && <Link className="auth-back" to="/login"><ArrowLeft /> Kembali ke login</Link>}
-      <span className="simple-auth-eyebrow">{isLogin ? 'SELAMAT DATANG KEMBALI' : isRegister ? 'MULAI BERSAMA FINANCEMY' : 'PEMULIHAN AKUN'}</span>
-      <h1>{title}</h1>
-      <p className="simple-auth-subtitle">{subtitle}</p>
+  return <main className="auth-reference-page">
+    <section className="auth-reference-visual">
+      <Link className="reference-brand" to="/"><span><CreditCard /></span>Finance<b>My</b></Link>
+      <div className="reference-hero">
+        <span className="reference-kicker"><Check /> CATAT. PAHAMI. RENCANAKAN.</span>
+        <h1>Ruang tenang untuk keuangan yang lebih <em>terarah.</em></h1>
+        <p>Pantau saldo, pahami kebiasaan, dan simpan semua rencana finansialmu dalam satu tempat.</p>
 
-      {mode !== 'forgot' && <div className="auth-tabs" role="tablist" aria-label="Pilih autentikasi">
-        <Link role="tab" aria-selected={isLogin} className={isLogin ? 'active' : ''} to="/login">Login</Link>
-        <Link role="tab" aria-selected={isRegister} className={isRegister ? 'active' : ''} to="/register">Register</Link>
-      </div>}
+        <article className="reference-summary-card">
+          <header><div><small>Ringkasan bulan ini</small><strong>Rp8.050.000</strong></div><span><b>68%</b><small>budget</small></span></header>
+          <div className="reference-summary-row"><i className="income"><TrendingUp /></i><span><strong>Pemasukan</strong><small>Agustus 2026</small></span><b>+Rp6.000.000</b></div>
+          <div className="reference-summary-row"><i className="expense"><TrendingDown /></i><span><strong>Pengeluaran</strong><small>Agustus 2026</small></span><b>−Rp903.500</b></div>
+          <div className="reference-summary-row"><i className="balance"><CircleDollarSign /></i><span><strong>Sisa budget</strong><small>27 hari tersisa</small></span><b>Rp1.532.500</b></div>
+        </article>
 
-      <form className="simple-auth-form" onSubmit={handleSubmit(submit)} noValidate>
-        {isRegister && <label>
-          Nama lengkap
-          <div className={`simple-input ${errors.name ? 'invalid' : ''}`}><UserRound /><input autoComplete="name" placeholder="Masukkan nama lengkap" {...register('name', { required: 'Nama wajib diisi.' })}/></div>
-          {errors.name && <small className="field-error">{errors.name.message}</small>}
-        </label>}
+        <div className="reference-mini-stats"><span><WalletCards/><strong>4 akun<small>Semua aktif</small></strong></span><span><CalendarDays/><strong>19 hari<small>Aman hingga gajian</small></strong></span></div>
+      </div>
+    </section>
 
-        <label>
-          Email
-          <div className={`simple-input ${errors.email ? 'invalid' : ''}`}><Mail /><input type="email" autoComplete="email" placeholder="Masukkan alamat email" {...register('email', { required: 'Email wajib diisi.', pattern: { value: /^\S+@\S+\.\S+$/, message: 'Masukkan email yang valid.' } })}/></div>
-          {errors.email && <small className="field-error">{errors.email.message}</small>}
-        </label>
+    <section className="auth-reference-form-wrap">
+      <div className="auth-reference-form-card">
+        <span className="reference-form-eyebrow">{isLogin ? 'SELAMAT DATANG KEMBALI' : isRegister ? 'MULAI BERSAMA FINANCEMY' : 'PEMULIHAN AKUN'}</span>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
 
-        {mode !== 'forgot' && <label>
-          Password
-          <div className={`simple-input ${errors.password ? 'invalid' : ''}`}><LockKeyhole /><input type={showPassword ? 'text' : 'password'} autoComplete={isLogin ? 'current-password' : 'new-password'} placeholder="Minimal 8 karakter" {...register('password', { required: 'Password wajib diisi.', minLength: { value: 8, message: 'Password minimal 8 karakter.' } })}/><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}>{showPassword ? <EyeOff /> : <Eye />}</button></div>
-          {errors.password && <small className="field-error">{errors.password.message}</small>}
-        </label>}
+        {mode !== 'forgot' && <div className="reference-auth-tabs" role="tablist" aria-label="Pilih autentikasi">
+          <Link role="tab" aria-selected={isLogin} className={isLogin ? 'active' : ''} to="/login">Login</Link>
+          <Link role="tab" aria-selected={isRegister} className={isRegister ? 'active' : ''} to="/register">Register</Link>
+        </div>}
 
-        {isRegister && <label>
-          Konfirmasi password
-          <div className={`simple-input ${errors.confirmPassword ? 'invalid' : ''}`}><LockKeyhole /><input type="password" autoComplete="new-password" placeholder="Ulangi password" {...register('confirmPassword', { validate: (value) => value === watch('password') || 'Konfirmasi password tidak sama.' })}/></div>
-          {errors.confirmPassword && <small className="field-error">{errors.confirmPassword.message}</small>}
-        </label>}
+        <form className="reference-auth-form" onSubmit={handleSubmit(submit)} noValidate>
+          {isRegister && <label>Nama lengkap<div className={`reference-input ${errors.name ? 'invalid' : ''}`}><UserRound/><input autoComplete="name" placeholder="Masukkan nama lengkap" {...register('name', { required: 'Nama wajib diisi.' })}/></div>{errors.name && <small className="field-error">{errors.name.message}</small>}</label>}
 
-        {isLogin && <div className="simple-forgot"><Link to="/lupa-password">Lupa password?</Link></div>}
-        {feedback && <div className={`form-feedback ${feedback.tone}`}>{feedback.text}</div>}
-        <button className="simple-auth-submit" disabled={busy}>{busy ? <span className="spinner" /> : <>{isLogin ? 'Masuk ke FinanceMy' : isRegister ? 'Daftar ke FinanceMy' : 'Kirim tautan reset'}<ArrowRight /></>}</button>
-      </form>
+          <label>Email<div className={`reference-input ${errors.email ? 'invalid' : ''}`}><Mail/><input type="email" autoComplete="email" placeholder="Masukkan alamat email" {...register('email', { required: 'Email wajib diisi.', pattern: { value: /^\S+@\S+\.\S+$/, message: 'Masukkan email yang valid.' } })}/></div>{errors.email && <small className="field-error">{errors.email.message}</small>}</label>
 
-      {mode !== 'forgot' && <>
-        <div className="simple-divider"><span>atau coba tanpa membuat akun</span></div>
-        <button className="simple-demo-button" onClick={enterDemo}>Lihat dashboard demo</button>
-        <small className="simple-demo-note">Tidak memerlukan akun Firebase</small>
-        <p className="simple-auth-switch">{isLogin ? 'Belum punya akun?' : 'Sudah punya akun?'} <Link to={isLogin ? '/register' : '/login'}>{isLogin ? 'Daftar sekarang' : 'Login sekarang'}</Link></p>
-      </>}
+          {mode !== 'forgot' && <label>Password<div className={`reference-input ${errors.password ? 'invalid' : ''}`}><LockKeyhole/><input type={showPassword ? 'text' : 'password'} autoComplete={isLogin ? 'current-password' : 'new-password'} placeholder="Minimal 8 karakter" {...register('password', { required: 'Password wajib diisi.', minLength: { value: 8, message: 'Password minimal 8 karakter.' } })}/><button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}>{showPassword ? <EyeOff/> : <Eye/>}</button></div>{errors.password && <small className="field-error">{errors.password.message}</small>}</label>}
+
+          {isRegister && <label>Konfirmasi password<div className={`reference-input ${errors.confirmPassword ? 'invalid' : ''}`}><ShieldCheck/><input type="password" autoComplete="new-password" placeholder="Ulangi password" {...register('confirmPassword', { validate: (value) => value === watch('password') || 'Konfirmasi password tidak sama.' })}/></div>{errors.confirmPassword && <small className="field-error">{errors.confirmPassword.message}</small>}</label>}
+
+          {isLogin && <div className="reference-forgot"><Link to="/lupa-password">Lupa password?</Link></div>}
+          {feedback && <div className={`form-feedback ${feedback.tone}`}>{feedback.text}</div>}
+          <button className="reference-submit" disabled={busy}>{busy ? <span className="spinner"/> : <>{isLogin ? 'Masuk ke FinanceMy' : isRegister ? 'Daftar ke FinanceMy' : 'Kirim tautan reset'}<ArrowRight/></>}</button>
+        </form>
+
+        {mode !== 'forgot' && <>
+          <div className="reference-divider"><span>atau coba tanpa membuat akun</span></div>
+          <button className="reference-demo" onClick={enterDemo}>Lihat dashboard demo</button>
+          <small className="reference-demo-note">Tidak memerlukan akun Firebase</small>
+          <p className="reference-auth-switch">{isLogin ? 'Belum punya akun?' : 'Sudah punya akun?'} <Link to={isLogin ? '/register' : '/login'}>{isLogin ? 'Daftar sekarang' : 'Login sekarang'}</Link></p>
+        </>}
+      </div>
     </section>
   </main>
 }
