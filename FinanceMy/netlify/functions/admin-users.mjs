@@ -12,17 +12,6 @@ async function readJson(request) {
   }
 }
 
-async function sendPasswordSetup(email) {
-  const apiKey = process.env.FIREBASE_WEB_API_KEY
-  if (!apiKey) throw new Error('FIREBASE_WEB_API_KEY belum dikonfigurasi.')
-  const result = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ requestType: 'PASSWORD_RESET', email }),
-  })
-  if (!result.ok) throw new Error('Firebase tidak dapat mengirim email pengaturan password.')
-}
-
 async function listUsers() {
   const users = []
   let pageToken
@@ -82,12 +71,7 @@ async function createUser(body) {
     throw error
   }
 
-  try {
-    await sendPasswordSetup(email)
-    return response(201, { message: 'Pengguna dibuat dan email pengaturan password telah dikirim.' })
-  } catch {
-    return response(201, { message: 'Pengguna berhasil dibuat, tetapi email pengaturan password gagal dikirim.', warning: true })
-  }
+  return response(201, { message: 'Pengguna berhasil dibuat.', email })
 }
 
 async function setStatus(body, adminUid) {
@@ -112,8 +96,7 @@ async function resetPassword(body) {
   const user = await adminAuth.getUser(uid)
   if (!user.email) return response(400, { error: 'Pengguna tidak memiliki alamat email.' })
   if (user.disabled) return response(400, { error: 'Aktifkan pengguna sebelum mengirim reset password.' })
-  await sendPasswordSetup(user.email)
-  return response(200, { message: 'Email reset password telah dikirim.' })
+  return response(200, { email: user.email })
 }
 
 export default async (request) => {

@@ -7,7 +7,7 @@ import { createAdminUser, listAdminUsers, sendAdminPasswordReset, setAdminUserSt
 const dateLabel = (value) => value ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(value)) : '–'
 
 export default function AdminPage() {
-  const { user, loading: authLoading, login, logout } = useAuth()
+  const { user, loading: authLoading, login, logout, resetPassword: sendPasswordEmail } = useAuth()
   const [authorized, setAuthorized] = useState(false)
   const [checking, setChecking] = useState(true)
   const [users, setUsers] = useState([])
@@ -68,8 +68,14 @@ export default function AdminPage() {
     const data = new FormData(form)
     try {
       const result = await createAdminUser({ name: data.get('name'), email: data.get('email') })
-      setFeedback({ tone: result.warning ? 'warning' : 'success', text: result.message })
-      form.reset(); await loadUsers()
+      form.reset()
+      try {
+        await sendPasswordEmail(result.email)
+        setFeedback({ tone: 'success', text: 'Pengguna dibuat dan email pengaturan password telah dikirim.' })
+      } catch {
+        setFeedback({ tone: 'warning', text: 'Pengguna berhasil dibuat, tetapi email pengaturan password gagal dikirim. Gunakan tombol kunci untuk mencoba kembali.' })
+      }
+      await loadUsers()
     } catch (error) { setFeedback({ tone: 'error', text: error.message }) }
     finally { setBusy(false) }
   }
@@ -87,7 +93,7 @@ export default function AdminPage() {
 
   const resetPassword = async (account) => {
     setBusy(true); setFeedback(null)
-    try { const result = await sendAdminPasswordReset(account.uid); setFeedback({ tone: 'success', text: result.message }) }
+    try { const result = await sendAdminPasswordReset(account.uid); await sendPasswordEmail(result.email); setFeedback({ tone: 'success', text: 'Email reset password telah dikirim.' }) }
     catch (error) { setFeedback({ tone: 'error', text: error.message }) }
     finally { setBusy(false) }
   }

@@ -73,12 +73,11 @@ Tambahkan variabel server berikut melalui Netlify **Site configuration → Envir
 FIREBASE_ADMIN_PROJECT_ID
 FIREBASE_ADMIN_CLIENT_EMAIL
 FIREBASE_ADMIN_PRIVATE_KEY
-FIREBASE_WEB_API_KEY
 ```
 
 `FIREBASE_ADMIN_PRIVATE_KEY` boleh disimpan dengan karakter `\n`; function akan mengubahnya menjadi newline. Sebagai alternatif, tiga variabel `FIREBASE_ADMIN_*` dapat diganti dengan satu `FIREBASE_SERVICE_ACCOUNT_JSON` yang berisi JSON service account lengkap. Jangan pernah memasukkan nilai rahasia tersebut ke source code atau `.env.example`.
 
-`FIREBASE_WEB_API_KEY` adalah Web API key Firebase yang dipakai server untuk meminta Firebase mengirim email reset password. Meskipun Web API key bukan kredensial Admin SDK, simpan versi server ini tanpa awalan `VITE_`.
+Email pengaturan dan reset password dikirim oleh Firebase Authentication SDK di browser setelah Netlify Function memverifikasi admin dan pengguna tujuan. Konfigurasi Firebase client yang sudah digunakan halaman login juga digunakan untuk proses ini; tidak diperlukan Web API key server tambahan.
 
 ### Membuat admin pertama
 
