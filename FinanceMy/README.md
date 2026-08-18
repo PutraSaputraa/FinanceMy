@@ -6,7 +6,8 @@ FinanceMy adalah aplikasi web pengelolaan keuangan pribadi berbasis React dan Fi
 
 ## Fitur yang tersedia
 
-- Login, register, lupa password, protected route, dan onboarding.
+- Login, lupa password, protected route, dan onboarding.
+- Login pengguna tertutup dan halaman admin `/admin` untuk provisioning akun.
 - Dashboard saldo, arus kas, budget adaptif, tagihan, transaksi, forecast, dan insight.
 - Form pemasukan, pengeluaran, dan transfer dengan validasi.
 - Akun/dompet dan rekonsiliasi saldo.
@@ -59,6 +60,62 @@ npm run build
 ```
 
 Hasil build berada di folder `dist/`.
+
+## Admin dan provisioning pengguna
+
+Pendaftaran publik dinonaktifkan. Route `/register` diarahkan ke `/login`, sedangkan akun pengguna dibuat oleh admin melalui `/admin`. Operasi daftar, pembuatan, aktivasi/nonaktivasi, dan reset password berjalan di Netlify Function `admin-users`; Firebase Admin SDK tidak pernah dimuat ke browser.
+
+### Environment variable Netlify
+
+Tambahkan variabel server berikut melalui Netlify **Site configuration → Environment variables**. Jangan beri awalan `VITE_`:
+
+```text
+FIREBASE_ADMIN_PROJECT_ID
+FIREBASE_ADMIN_CLIENT_EMAIL
+FIREBASE_ADMIN_PRIVATE_KEY
+FIREBASE_WEB_API_KEY
+```
+
+`FIREBASE_ADMIN_PRIVATE_KEY` boleh disimpan dengan karakter `\n`; function akan mengubahnya menjadi newline. Sebagai alternatif, tiga variabel `FIREBASE_ADMIN_*` dapat diganti dengan satu `FIREBASE_SERVICE_ACCOUNT_JSON` yang berisi JSON service account lengkap. Jangan pernah memasukkan nilai rahasia tersebut ke source code atau `.env.example`.
+
+`FIREBASE_WEB_API_KEY` adalah Web API key Firebase yang dipakai server untuk meminta Firebase mengirim email reset password. Meskipun Web API key bukan kredensial Admin SDK, simpan versi server ini tanpa awalan `VITE_`.
+
+### Membuat admin pertama
+
+1. Buat akun email/password admin melalui Firebase Console → Authentication → Users.
+2. Unduh service account hanya ke komputer pengelola dan simpan di luar repository, atau gunakan nama file `service-account*.json` yang sudah diabaikan Git.
+3. Di PowerShell, jalankan:
+
+```powershell
+$env:FIREBASE_SERVICE_ACCOUNT_FILE='C:\path-aman\service-account.json'
+npm run set-admin -- --email admin@example.com
+```
+
+Alternatifnya, gunakan `--uid FIREBASE_UID`. Script mempertahankan custom claim lain yang telah dimiliki akun tersebut dan menambahkan `admin: true`.
+
+4. Logout lalu login kembali melalui `/admin` agar Firebase menerbitkan ID token baru.
+
+Admin pertama sebaiknya juga memiliki dokumen `users/{uid}` berstatus `active` bila akun tersebut akan menggunakan aplikasi FinanceMy sebagai pengguna biasa. Netlify Functions tetap memverifikasi claim admin secara langsung.
+
+### Pengujian lokal admin
+
+Gunakan Netlify CLI agar Vite dan Functions berjalan bersama:
+
+```bash
+npx netlify dev
+```
+
+Siapkan environment variable Admin SDK secara lokal melalui mekanisme environment Netlify atau shell. Jangan memakai `vite dev` untuk menguji endpoint karena Vite sendiri tidak menjalankan `/.netlify/functions/*`.
+
+### Model keamanan
+
+- Setiap request admin membawa Firebase ID token dan diverifikasi dengan `checkRevoked`.
+- Endpoint menolak token tanpa custom claim `admin: true`.
+- Admin SDK hanya berjalan di Netlify Functions.
+- Pengguna nonaktif dinonaktifkan pada Firebase Authentication, refresh token dicabut, dan status Firestore diubah menjadi `disabled`.
+- Firestore Rules memeriksa status pengguna pada setiap akses data. Dokumen lama tanpa field `status` diperlakukan aktif selama migrasi.
+- Pengguna biasa tidak dapat membuat profil sendiri atau mengubah status miliknya.
+- Admin tidak dapat menonaktifkan dirinya atau admin lain melalui dashboard.
 
 ## Deploy Firebase Hosting
 

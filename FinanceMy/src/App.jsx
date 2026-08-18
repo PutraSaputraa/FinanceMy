@@ -15,6 +15,7 @@ const GoalsPage = lazy(() => import('./pages/goals/GoalsPage'))
 const DebtsPage = lazy(() => import('./pages/debts/DebtsPage'))
 const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'))
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'))
+const AdminPage = lazy(() => import('./pages/admin/AdminPage'))
 
 function LoadingScreen() { return <div className="loading-screen"><div className="brand-loader">FM</div><span>Menyiapkan FinanceMy...</span></div> }
 function Protected({ children }) { const { user, loading } = useAuth(); if (loading) return <LoadingScreen/>; return user ? children : <Navigate to="/login" replace/> }
@@ -22,8 +23,9 @@ function Protected({ children }) { const { user, loading } = useAuth(); if (load
 export default function App() {
   return <Suspense fallback={<LoadingScreen/>}><Routes>
     <Route path="/login" element={<AuthPage mode="login"/>}/>
-    <Route path="/register" element={<AuthPage mode="register"/>}/>
+    <Route path="/register" element={<Navigate to="/login" replace/>}/>
     <Route path="/lupa-password" element={<AuthPage mode="forgot"/>}/>
+    <Route path="/admin" element={<AdminPage/>}/>
     <Route path="/onboarding" element={<Protected><OnboardingPage/></Protected>}/>
     <Route element={<Protected><AppLayout/></Protected>}>
       <Route path="/dashboard" element={<DashboardPage/>}/>

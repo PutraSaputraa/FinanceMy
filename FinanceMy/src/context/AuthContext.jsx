@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../firebase/config'
-import { loginUser, logoutUser, registerUser, resetPassword } from '../services/authService'
+import { loginUser, logoutUser, resetPassword } from '../services/authService'
 
 const AuthContext = createContext(null)
 const demoUser = { uid: 'demo-user', displayName: 'Raka Pratama', email: 'raka@financemy.id', isDemo: true }
@@ -19,7 +19,6 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => ({
     user, loading,
     login: async (email, password) => { const result = await loginUser(email, password); setUser(result.user); return result },
-    register: registerUser,
     resetPassword,
     demoLogin: async () => {
       if (auth.currentUser) await logoutUser()

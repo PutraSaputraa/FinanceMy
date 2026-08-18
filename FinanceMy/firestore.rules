@@ -3,38 +3,49 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function isOwner(userId) { return signedIn() && request.auth.uid == userId; }
+    function activeOwner(userId) {
+      return isOwner(userId)
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && (!('status' in get(/databases/$(database)/documents/users/$(userId)).data)
+          || get(/databases/$(database)/documents/users/$(userId)).data.status == 'active');
+    }
+    function statusUnchanged() {
+      return ((!('status' in resource.data) && !('status' in request.resource.data))
+        || (('status' in resource.data) && ('status' in request.resource.data)
+          && request.resource.data.status == resource.data.status));
+    }
     function validName(data) { return data.name is string && data.name.size() > 0 && data.name.size() <= 120; }
     function validAmount(data, field) { return data[field] is number && data[field] >= 0; }
 
     match /users/{userId} {
-      allow create: if isOwner(userId) && validName(request.resource.data)
-        && request.resource.data.email == request.auth.token.email;
-      allow read, delete: if isOwner(userId);
-      allow update: if isOwner(userId) && validName(request.resource.data)
-        && request.resource.data.email == resource.data.email;
+      allow create: if false;
+      allow read, delete: if activeOwner(userId);
+      allow update: if activeOwner(userId) && validName(request.resource.data)
+        && request.resource.data.email == resource.data.email
+        && statusUnchanged();
 
       match /accounts/{accountId} {
-        allow read, delete: if isOwner(userId);
-        allow create, update: if isOwner(userId) && validName(request.resource.data)
+        allow read, delete: if activeOwner(userId);
+        allow create, update: if activeOwner(userId) && validName(request.resource.data)
           && validAmount(request.resource.data, 'initialBalance')
           && request.resource.data.currentBalance is number
           && request.resource.data.isActive is bool;
       }
       match /transactions/{transactionId} {
-        allow read, delete: if isOwner(userId);
-        allow create, update: if isOwner(userId)
+        allow read, delete: if activeOwner(userId);
+        allow create, update: if activeOwner(userId)
           && request.resource.data.title is string && request.resource.data.title.size() > 0
           && validAmount(request.resource.data, 'amount') && request.resource.data.amount > 0
           && request.resource.data.type in ['income', 'expense', 'transfer', 'refund', 'adjustment'];
       }
       match /budgets/{budgetId} {
-        allow read, delete: if isOwner(userId);
-        allow create, update: if isOwner(userId) && validName(request.resource.data)
+        allow read, delete: if activeOwner(userId);
+        allow create, update: if activeOwner(userId) && validName(request.resource.data)
           && validAmount(request.resource.data, 'amount') && request.resource.data.amount > 0
           && request.resource.data.method in ['fixed', 'adaptive', 'rollover', 'saving', 'hybrid'];
       }
       match /{collection}/{documentId} {
-        allow read, write: if isOwner(userId)
+        allow read, write: if activeOwner(userId)
           && collection in ['categories', 'recurringTransactions', 'bills', 'subscriptions', 'goals', 'debts', 'receivables', 'installments', 'notifications', 'allocationTemplates', 'wishlists', 'sharedExpenses', 'settings'];
       }
     }
