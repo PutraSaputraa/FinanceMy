@@ -21,7 +21,7 @@ export default function ReportsPage() {
   const averageDaily = current.expense / Math.max(month.daysElapsed, 1)
   const savingRatio = totalIncome ? Math.max((totalSaved / totalIncome) * 100, 0) : 0
   const expenseRatio = totalIncome ? (totalExpense / totalIncome) * 100 : 0
-  const totalBalance = accounts.filter((account) => account.isActive).reduce((sum, account) => sum + Number(account.currentBalance || 0), 0)
+  const totalBalance = accounts.filter((account) => account.isActive !== false).reduce((sum, account) => sum + Number(account.currentBalance || 0), 0)
   const emergencyMonths = averageDaily ? totalBalance / (averageDaily * 30) : 0
   const lateBills = bills.filter((bill) => ['Terlambat', 'Belum dibayar'].includes(bill.status)).length
   const hasData = transactions.length > 0

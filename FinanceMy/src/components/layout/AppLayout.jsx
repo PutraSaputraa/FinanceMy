@@ -33,7 +33,7 @@ export default function AppLayout() {
   const doLogout = async () => { await logout(); navigate('/login') }
   const now = new Date()
   const month = getMonthInfo(now)
-  const totalBalance = accounts.filter((account) => account.isActive).reduce((sum, account) => sum + Number(account.currentBalance || 0), 0)
+  const totalBalance = accounts.filter((account) => account.isActive !== false).reduce((sum, account) => sum + Number(account.currentBalance || 0), 0)
   const currentExpense = getPeriodSummary(transactions, now).expense
   const dailyAverage = currentExpense / Math.max(month.daysElapsed, 1)
   const obligations = bills.filter((bill) => !['Sudah dibayar', 'Lunas', 'Dibatalkan'].includes(bill.status)).reduce((sum, bill) => sum + Number(bill.amount || 0), 0)
@@ -43,7 +43,7 @@ export default function AppLayout() {
   const notificationItems = [
     ...bills.filter((bill) => !['Sudah dibayar', 'Lunas', 'Dibatalkan'].includes(bill.status)).map((bill) => ({ tone: 'warning', title: `${bill.title || bill.name} belum dibayar`, detail: `${formatCurrency(bill.amount)} • ${bill.account || 'Akun belum dipilih'}` })),
     ...budgets.filter((budget) => budget.amount && (budget.spent / budget.amount) >= .8).map((budget) => ({ tone: (budget.spent / budget.amount) >= 1 ? 'danger' : 'warning', title: `Budget ${budget.name} terpakai ${Math.round((budget.spent / budget.amount) * 100)}%`, detail: `Tersisa ${formatCurrency(Math.max(budget.amount - budget.spent, 0))}` })),
-    ...accounts.filter((account) => account.isActive && Number(account.currentBalance || 0) < 100000).map((account) => ({ tone: 'danger', title: `Saldo ${account.name} rendah`, detail: `Saldo saat ini ${formatCurrency(account.currentBalance)}` })),
+    ...accounts.filter((account) => account.isActive !== false && Number(account.currentBalance || 0) < 100000).map((account) => ({ tone: 'danger', title: `Saldo ${account.name} rendah`, detail: `Saldo saat ini ${formatCurrency(account.currentBalance)}` })),
   ].slice(0, 5)
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Pengguna'
 

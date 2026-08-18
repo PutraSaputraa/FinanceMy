@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { demoAccounts, demoBudgets, demoDebtRecords, demoGoals, demoTransactions, upcomingBills } from '../constants/demoData'
 import { useAuth } from './AuthContext'
-import { addAccount, addBudget, addUserRecord, createTransaction, markBillPaid, subscribeCollection } from '../services/financeService'
+import { addAccount, addBudget, addUserRecord, createTransaction, markBillPaid, setAccountActive, subscribeCollection } from '../services/financeService'
 
 const FinanceContext = createContext(null)
 const collectionKeys = ['accounts', 'transactions', 'budgets', 'bills', 'recurringTransactions', 'goals', 'debts', 'receivables', 'installments']
@@ -134,6 +134,15 @@ export function FinanceProvider({ children }) {
     notify('Budget berhasil dibuat')
   }
 
+  const toggleAccountActive = async (accountId, isActive) => {
+    if (user && !user.isDemo) await setAccountActive(user.uid, accountId, isActive)
+    else setDemoData((current) => ({
+      ...current,
+      accounts: current.accounts.map((account) => account.id === accountId ? { ...account, isActive } : account),
+    }))
+    notify(isActive ? 'Akun berhasil diaktifkan kembali' : 'Akun berhasil dinonaktifkan')
+  }
+
   const addRecurring = async (values) => {
     const record = { ...values, amount: Number(values.amount || 0), isActive: true }
     if (user && !user.isDemo) await addUserRecord(user.uid, 'recurringTransactions', record)
@@ -175,6 +184,7 @@ export function FinanceProvider({ children }) {
     addDemoTransaction,
     addDemoAccount,
     addDemoBudget,
+    toggleAccountActive,
     addRecurring,
     addGoal,
     addDebtRecord,

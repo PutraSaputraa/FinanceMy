@@ -34,7 +34,8 @@ export default function DashboardPage() {
   const previousSummary = getPeriodSummary(transactions, previousMonth)
   const cashFlowData = buildMonthlyCashFlow(transactions, now)
   const categoryData = buildCategoryData(transactions, now)
-  const totalBalance = accounts.filter((account) => account.isActive).reduce((sum, account) => sum + Number(account.currentBalance || 0), 0)
+  const activeAccounts = accounts.filter((account) => account.isActive !== false)
+  const totalBalance = activeAccounts.reduce((sum, account) => sum + Number(account.currentBalance || 0), 0)
   const income = currentSummary.income
   const expense = currentSummary.expense
   const previousBalance = totalBalance - (income - expense)
@@ -66,7 +67,7 @@ export default function DashboardPage() {
     <section className="dashboard-grid account-section">
       <article className="card span-8">
         <div className="section-head"><div><h2>Saldo akun</h2><p>Semua akun aktifmu</p></div><button className="icon-text" onClick={()=>setHiddenAmounts(!hiddenAmounts)}>{hiddenAmounts ? <Eye/> : <EyeOff/>}{hiddenAmounts ? 'Tampilkan' : 'Sembunyikan'} nominal</button></div>
-        {accounts.length ? <div className="account-grid">{accounts.map((account)=><AccountCard key={account.id} account={account}/>)}</div> : <div className="empty-state"><WalletCards/><h3>Belum ada akun</h3><p>Tambahkan rekening, e-wallet, atau uang tunai untuk mulai mencatat.</p></div>}
+        {activeAccounts.length ? <div className="account-grid">{activeAccounts.map((account)=><AccountCard key={account.id} account={account}/>)}</div> : <div className="empty-state"><WalletCards/><h3>Belum ada akun aktif</h3><p>Tambahkan atau aktifkan kembali akun untuk mulai mencatat.</p></div>}
         <button className="link-btn" onClick={()=>navigate('/akun')}>{accounts.length ? 'Lihat semua akun' : 'Tambah akun'} <ArrowRight/></button>
       </article>
       <article className="card span-4 daily-budget">

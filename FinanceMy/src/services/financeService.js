@@ -15,6 +15,13 @@ export async function addAccount(userId, values) {
   })
 }
 
+export async function setAccountActive(userId, accountId, isActive) {
+  return updateDoc(doc(db, 'users', userId, 'accounts', accountId), {
+    isActive,
+    updatedAt: serverTimestamp(),
+  })
+}
+
 export async function addBudget(userId, values) {
   return addDoc(collection(db, 'users', userId, 'budgets'), {
     ...values, amount: Number(values.amount), warningThreshold: 80, isActive: true,
