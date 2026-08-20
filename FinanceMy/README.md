@@ -77,7 +77,7 @@ FIREBASE_ADMIN_PRIVATE_KEY
 
 `FIREBASE_ADMIN_PRIVATE_KEY` boleh disimpan dengan karakter `\n`; function akan mengubahnya menjadi newline. Sebagai alternatif, tiga variabel `FIREBASE_ADMIN_*` dapat diganti dengan satu `FIREBASE_SERVICE_ACCOUNT_JSON` yang berisi JSON service account lengkap. Jangan pernah memasukkan nilai rahasia tersebut ke source code atau `.env.example`.
 
-Email pengaturan dan reset password dikirim oleh Firebase Authentication SDK di browser setelah Netlify Function memverifikasi admin dan pengguna tujuan. Konfigurasi Firebase client yang sudah digunakan halaman login juga digunakan untuk proses ini; tidak diperlukan Web API key server tambahan.
+Saat membuat pengguna, admin mengisi email, username, dan password awal. Akun langsung aktif sehingga pengguna dapat login tanpa membuka email untuk mengatur password. Password dikirim langsung ke Firebase Authentication dan tidak pernah disimpan di Firestore. Fitur lupa/reset password melalui email tetap tersedia bila pengguna membutuhkannya.
 
 ### Membuat admin pertama
 

@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import { FieldValue } from 'firebase-admin/firestore'
 import { adminAuth, adminDb, requireAdmin, response } from './_lib/firebase-admin.mjs'
 
@@ -40,22 +39,25 @@ async function listUsers() {
 }
 
 async function createUser(body) {
-  const name = typeof body?.name === 'string' ? body.name.trim() : ''
+  const username = typeof body?.username === 'string' ? body.username.trim() : ''
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : ''
-  if (name.length < 2 || name.length > 120) return response(400, { error: 'Nama harus terdiri dari 2–120 karakter.' })
+  const password = typeof body?.password === 'string' ? body.password : ''
+  if (username.length < 2 || username.length > 60) return response(400, { error: 'Username harus terdiri dari 2–60 karakter.' })
   if (!EMAIL_PATTERN.test(email) || email.length > 254) return response(400, { error: 'Alamat email tidak valid.' })
+  if (password.length < 8 || password.length > 128) return response(400, { error: 'Password harus terdiri dari 8–128 karakter.' })
 
   let user
   try {
     user = await adminAuth.createUser({
-      displayName: name,
+      displayName: username,
       email,
       emailVerified: false,
-      password: randomBytes(48).toString('base64url'),
+      password,
       disabled: false,
     })
     await adminDb.doc(`users/${user.uid}`).set({
-      name,
+      name: username,
+      username,
       email,
       status: 'active',
       currency: 'IDR',
@@ -68,10 +70,11 @@ async function createUser(body) {
   } catch (error) {
     if (user) await adminAuth.deleteUser(user.uid).catch(() => {})
     if (error.code === 'auth/email-already-exists') return response(409, { error: 'Email ini sudah terdaftar.' })
+    if (error.code === 'auth/invalid-password') return response(400, { error: 'Password tidak memenuhi ketentuan Firebase Authentication.' })
     throw error
   }
 
-  return response(201, { message: 'Pengguna berhasil dibuat.', email })
+  return response(201, { message: 'Akun pengguna berhasil dibuat dan langsung dapat digunakan.', email })
 }
 
 async function setStatus(body, adminUid) {

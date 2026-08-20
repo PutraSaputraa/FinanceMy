@@ -62,6 +62,7 @@ a{text-decoration:none;color:inherit}.app-shell{min-height:100vh;background:var(
 .admin-login form{display:flex;flex-direction:column;gap:14px}.admin-login label,.admin-create label{display:flex;flex-direction:column;gap:7px;font-size:10px;font-weight:700}
 .admin-login input,.admin-create input{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:8px;padding:11px;outline:none}
 .admin-login input:focus,.admin-create input:focus{border-color:var(--emerald);box-shadow:0 0 0 3px color-mix(in srgb,var(--emerald) 11%,transparent)}
+.admin-password-hint{color:var(--muted);font-size:8px;line-height:1.5;margin-top:-5px}
 .admin-login form .primary-btn{margin-top:5px}.admin-login>a{display:block;text-align:center;color:var(--emerald);font-size:10px;font-weight:700;margin-top:18px}
 .admin-page{min-height:100vh;background:var(--bg)}
 .admin-header{height:72px;background:var(--surface);border-bottom:1px solid var(--line);padding:0 clamp(18px,4vw,54px);display:flex;align-items:center;justify-content:space-between}

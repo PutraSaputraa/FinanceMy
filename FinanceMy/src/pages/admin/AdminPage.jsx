@@ -67,14 +67,9 @@ export default function AdminPage() {
     const form = event.currentTarget
     const data = new FormData(form)
     try {
-      const result = await createAdminUser({ name: data.get('name'), email: data.get('email') })
+      const result = await createAdminUser({ username: data.get('username'), email: data.get('email'), password: data.get('password') })
       form.reset()
-      try {
-        await sendPasswordEmail(result.email)
-        setFeedback({ tone: 'success', text: 'Pengguna dibuat dan email pengaturan password telah dikirim.' })
-      } catch {
-        setFeedback({ tone: 'warning', text: 'Pengguna berhasil dibuat, tetapi email pengaturan password gagal dikirim. Gunakan tombol kunci untuk mencoba kembali.' })
-      }
+      setFeedback({ tone: 'success', text: result.message })
       await loadUsers()
     } catch (error) { setFeedback({ tone: 'error', text: error.message }) }
     finally { setBusy(false) }
@@ -106,7 +101,7 @@ export default function AdminPage() {
   return <main className="admin-page"><header className="admin-header"><div><span className="admin-brand"><ShieldCheck/>FinanceMy Admin</span><small>Manajemen akses pengguna</small></div><button className="secondary-btn" onClick={logout}><LogOut/>Logout</button></header><div className="admin-content">
     {feedback&&<div className={`admin-feedback ${feedback.tone}`}>{feedback.text}<button onClick={()=>setFeedback(null)}>×</button></div>}
     <section className="admin-metrics"><article className="card"><UsersRound/><span>Semua pengguna<strong>{users.length}</strong></span></article><article className="card"><UserRound/><span>Pengguna aktif<strong>{counts.active}</strong></span></article><article className="card"><Archive/><span>Nonaktif<strong>{counts.disabled}</strong></span></article></section>
-    <section className="admin-grid"><form className="card admin-create" onSubmit={createUser}><header><Plus/><span><strong>Tambah pengguna</strong><small>Pengguna akan menerima email untuk mengatur password.</small></span></header><label>Nama lengkap<input name="name" required minLength="2" maxLength="120"/></label><label>Email<input name="email" type="email" required/></label><button className="primary-btn" disabled={busy}><Plus/>{busy?'Memproses...':'Buat pengguna'}</button></form>
+    <section className="admin-grid"><form className="card admin-create" onSubmit={createUser}><header><Plus/><span><strong>Tambah pengguna</strong><small>Akun langsung aktif tanpa pengaturan password melalui email.</small></span></header><label>Email<input name="email" type="email" required autoComplete="off"/></label><label>Username<input name="username" required minLength="2" maxLength="60" autoComplete="off"/></label><label>Password awal<input name="password" type="password" required minLength="8" maxLength="128" autoComplete="new-password"/></label><small className="admin-password-hint">Minimal 8 karakter. Berikan email dan password awal kepada pengguna melalui jalur yang aman.</small><button className="primary-btn" disabled={busy}><Plus/>{busy?'Memproses...':'Buat akun'}</button></form>
     <section className="card admin-users"><header><div><h2>Daftar pengguna</h2><p>{users.length} akun terdaftar</p></div>{busy&&<LoaderCircle className="spin"/>}</header>{users.length?<div className="admin-table-wrap"><table><thead><tr><th>Pengguna</th><th>Dibuat</th><th>Status</th><th>Aksi</th></tr></thead><tbody>{users.map((account)=><tr key={account.uid}><td><strong>{account.name||'Tanpa nama'}{account.isAdmin&&<em>Admin</em>}</strong><small>{account.email}</small></td><td>{dateLabel(account.createdAt)}</td><td><span className={`admin-status ${account.status}`}>{account.status==='active'?'Aktif':'Nonaktif'}</span></td><td><div className="admin-actions"><button title="Kirim reset password" disabled={busy||account.status==='disabled'} onClick={()=>resetPassword(account)}><KeyRound/></button><button title={account.status==='active'?'Nonaktifkan':'Aktifkan'} disabled={busy||account.isAdmin} onClick={()=>setTarget(account)}>{account.status==='active'?<Archive/>:<RotateCcw/>}</button></div></td></tr>)}</tbody></table></div>:<div className="empty-state"><UsersRound/><h3>Belum ada pengguna</h3><p>Buat pengguna pertama melalui formulir di samping.</p></div>}</section></section>
   </div><Modal open={!!target} onClose={()=>setTarget(null)} title={`${target?.status==='active'?'Nonaktifkan':'Aktifkan'} ${target?.name||'pengguna'}?`} description={target?.status==='active'?'Pengguna akan segera kehilangan akses ke data FinanceMy.':'Pengguna dapat kembali login dan mengakses datanya.'}><div className="form-actions"><button className="secondary-btn" onClick={()=>setTarget(null)}>Batal</button><button className={target?.status==='active'?'danger-btn':'primary-btn'} disabled={busy} onClick={updateStatus}>{target?.status==='active'?<Archive/>:<RotateCcw/>}{target?.status==='active'?'Nonaktifkan':'Aktifkan kembali'}</button></div></Modal></main>
 }
