@@ -6,6 +6,8 @@ FinanceMy adalah aplikasi web pengelolaan keuangan pribadi berbasis React dan Fi
 
 ## Fitur yang tersedia
 
+- Landing page publik untuk demo, penjualan akses, FAQ, dan roadmap produk.
+- Identitas visual FinanceMy dengan logo, hero 3D, ilustrasi smart capture, dan social preview orisinal.
 - Login, lupa password, protected route, dan onboarding.
 - Login pengguna tertutup dan halaman admin `/admin` untuk provisioning akun.
 - Dashboard saldo, arus kas, budget adaptif, tagihan, transaksi, forecast, dan insight.
@@ -38,6 +40,8 @@ npm run dev
 Buka URL yang ditampilkan Vite. Untuk melihat seluruh fitur tanpa membuat akun, pilih **Masuk dengan data demo**. Data demo hanya disimpan di state aplikasi selama sesi berjalan.
 
 Isi `.env` dengan konfigurasi Web App dari Firebase Console. Konfigurasi project yang diberikan sudah digunakan sebagai fallback development, tetapi environment variable tetap direkomendasikan untuk deployment.
+
+Untuk mengarahkan tombol penjualan di landing page ke WhatsApp admin, isi `VITE_SALES_WHATSAPP` dengan nomor internasional tanpa tanda `+`, misalnya `6281234567890`.
 
 Di Firebase Console:
 
@@ -171,6 +175,17 @@ src/
 ```
 
 Security rules ada di `firestore.rules`, sedangkan composite indexes ada di `firestore.indexes.json`.
+
+## Aset merek
+
+Aset visual siap pakai berada di `src/assets/`:
+
+- `financemy-logo-mark.png` — logo mark transparan untuk aplikasi dan favicon.
+- `financemy-logo-lockup.png` — logo horizontal transparan untuk materi promosi.
+- `financemy-hero-3d.png` — ilustrasi hero landing page dengan latar transparan.
+- `financemy-smart-capture.png` — ilustrasi roadmap pencatatan chat dan nota dengan latar transparan.
+
+Social preview berada di `public/financemy-og.png`.
 
 ## Catatan keamanan
 

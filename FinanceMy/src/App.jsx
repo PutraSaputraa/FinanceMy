@@ -2,8 +2,11 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import AppLayout from './components/layout/AppLayout'
+import brandLogo from './assets/financemy-logo-mark.png'
 import './App.css'
+import './premium.css'
 
+const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
 const AuthPage = lazy(() => import('./pages/auth/AuthPage'))
 const OnboardingPage = lazy(() => import('./pages/auth/OnboardingPage'))
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'))
@@ -17,11 +20,12 @@ const ReportsPage = lazy(() => import('./pages/reports/ReportsPage'))
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'))
 const AdminPage = lazy(() => import('./pages/admin/AdminPage'))
 
-function LoadingScreen() { return <div className="loading-screen"><div className="brand-loader">FM</div><span>Menyiapkan FinanceMy...</span></div> }
+function LoadingScreen() { return <div className="loading-screen"><div className="brand-loader"><img src={brandLogo} alt=""/></div><span>Menyiapkan FinanceMy...</span></div> }
 function Protected({ children }) { const { user, loading } = useAuth(); if (loading) return <LoadingScreen/>; return user ? children : <Navigate to="/login" replace/> }
 
 export default function App() {
   return <Suspense fallback={<LoadingScreen/>}><Routes>
+    <Route path="/" element={<LandingPage/>}/>
     <Route path="/login" element={<AuthPage mode="login"/>}/>
     <Route path="/register" element={<Navigate to="/login" replace/>}/>
     <Route path="/lupa-password" element={<AuthPage mode="forgot"/>}/>
@@ -38,6 +42,6 @@ export default function App() {
       <Route path="/laporan" element={<ReportsPage/>}/>
       <Route path="/pengaturan" element={<SettingsPage/>}/>
     </Route>
-    <Route path="*" element={<Navigate to="/dashboard" replace/>}/>
+    <Route path="*" element={<Navigate to="/" replace/>}/>
   </Routes></Suspense>
 }

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, CreditCard, Landmark, PiggyBank, WalletCards } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Landmark, PiggyBank, WalletCards } from 'lucide-react'
 import { useFinance } from '../../context/FinanceContext'
 import { useAuth } from '../../context/AuthContext'
 import { completeOnboarding } from '../../services/financeService'
 import { getMonthInfo } from '../../utils/analytics'
 import { formatCurrency } from '../../utils/formatters'
+import brandLogo from '../../assets/financemy-logo-mark.png'
 
 export default function OnboardingPage() {
   const { user } = useAuth()
@@ -15,7 +16,7 @@ export default function OnboardingPage() {
   const navigate = useNavigate()
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }))
   const finish = async () => { if (form.accountName) await addDemoAccount({ name: form.accountName, type: form.accountType, initialBalance: form.initialBalance, color: '#087f5b' }); if (form.budgetAmount) await addDemoBudget({ name: form.budgetName, amount: form.budgetAmount, spent: 0, method: 'adaptive', color: '#087f5b' }); if (user && !user.isDemo) await completeOnboarding(user.uid, form); navigate('/dashboard') }
-  return <main className="onboarding"><header><div className="auth-brand"><span><CreditCard size={22}/></span>Finance<b>My</b></div><span>Langkah {step} dari 3</span></header>
+  return <main className="onboarding"><header><div className="auth-brand"><span><img src={brandLogo} alt="" aria-hidden="true"/></span>Finance<b>My</b></div><span>Langkah {step} dari 3</span></header>
     <div className="onboard-progress"><i className={step >= 1 ? 'active' : ''}/><i className={step >= 2 ? 'active' : ''}/><i className={step >= 3 ? 'active' : ''}/></div>
     <section className="onboard-card">
       {step === 1 && <><div className="onboard-icon"><WalletCards/></div><h1>Mari kenalan dulu</h1><p>Atur preferensi dasar. Kamu dapat mengubah semuanya nanti.</p><div className="form-grid"><label className="full">Nama tampilan<input value={form.name} onChange={(e)=>update('name',e.target.value)}/></label><label>Mata uang<select value={form.currency} onChange={(e)=>update('currency',e.target.value)}><option>IDR — Rupiah</option></select></label><label>Tanggal awal budget<select value={form.budgetStartDay} onChange={(e)=>update('budgetStartDay',e.target.value)}>{[1,5,10,15,20,25].map(day=><option key={day}>{day}</option>)}</select></label></div></>}

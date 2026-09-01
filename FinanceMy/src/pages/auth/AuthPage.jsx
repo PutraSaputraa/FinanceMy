@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { ArrowRight, Check, CreditCard, Eye, EyeOff, LockKeyhole, Mail, Sparkles } from 'lucide-react'
+import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import brandLogo from '../../assets/financemy-logo-mark.png'
+import heroVisual from '../../assets/financemy-hero-3d.png'
 
 const messages = {
   'auth/invalid-credential': 'Email atau password tidak sesuai.',
@@ -43,7 +45,7 @@ export default function AuthPage({ mode = 'login' }) {
 
   return <main className="auth-reference-page">
     <section className="auth-reference-visual">
-      <Link className="auth-brand" to="/"><span><CreditCard size={23}/></span>Finance<b>My</b></Link>
+      <Link className="auth-brand" to="/"><span><img src={brandLogo} alt="" aria-hidden="true"/></span>Finance<b>My</b></Link>
       <div className="auth-copy">
         <span className="auth-kicker"><Sparkles size={15}/> Keuangan jadi lebih jelas</span>
         <h1>Tenang dengan uang.<br/><em>Yakin dengan rencana.</em></h1>
@@ -53,7 +55,9 @@ export default function AuthPage({ mode = 'login' }) {
           <span><Check/>Budget yang menyesuaikan kebiasaanmu</span>
           <span><Check/>Privasi data terlindungi Firebase</span>
         </div>
+        <div className="auth-proof-card"><ShieldCheck/>Akun pribadi dengan data yang terpisah dan terlindungi.</div>
       </div>
+      <img className="auth-product-art" src={heroVisual} alt="" aria-hidden="true"/>
       <div className="auth-quote"><div className="quote-icon">“</div><p>Sejak mencatat dengan rutin, saya akhirnya tahu bukan cuma berapa uang yang tersisa—tetapi juga ke mana uang saya akan pergi.</p><span className="quote-avatar">A</span><strong>Alya Kusuma<small>Pengguna FinanceMy</small></strong></div>
     </section>
 

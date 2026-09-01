@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { BarChart3, Bell, CalendarClock, CircleDollarSign, CreditCard, Goal, HandCoins, LayoutDashboard, LogOut, Menu, Moon, Plus, ReceiptText, Search, Settings, Sun, WalletCards, X } from 'lucide-react'
+import { BarChart3, Bell, CalendarClock, CircleDollarSign, Goal, HandCoins, LayoutDashboard, LogOut, Menu, Moon, Plus, ReceiptText, Search, Settings, Sun, WalletCards, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useFinance } from '../../context/FinanceContext'
@@ -8,6 +8,7 @@ import { calculateCashFlow } from '../../utils/calculations'
 import { getMonthInfo, getPeriodSummary } from '../../utils/analytics'
 import { formatCurrency } from '../../utils/formatters'
 import Toast from '../common/Toast'
+import brandLogo from '../../assets/financemy-logo-mark.png'
 
 const navigation = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -49,7 +50,7 @@ export default function AppLayout() {
 
   return <div className="app-shell">
     <aside className={`sidebar ${drawer ? 'open' : ''}`}>
-      <div className="brand-row"><div className="brand-mark"><CreditCard size={22} /></div><span>Finance<span>My</span></span><button className="drawer-close" onClick={() => setDrawer(false)} aria-label="Tutup menu"><X /></button></div>
+      <div className="brand-row"><div className="brand-mark"><img src={brandLogo} alt="" aria-hidden="true"/></div><span>Finance<span>My</span></span><button className="drawer-close" onClick={() => setDrawer(false)} aria-label="Tutup menu"><X /></button></div>
       <nav className="side-nav" aria-label="Navigasi utama">
         <p className="nav-caption">MENU UTAMA</p>
         {navigation.slice(0, 5).map(({ label, path, icon: Icon }) => <NavLink key={path} to={path} onClick={() => setDrawer(false)}><Icon size={19} /><span>{label}</span></NavLink>)}
@@ -65,7 +66,7 @@ export default function AppLayout() {
     <main className="main-shell">
       <header className="topbar">
         <div className="mobile-brand"><button className="icon-btn" onClick={() => setDrawer(true)} aria-label="Buka menu"><Menu /></button><strong>{active?.label || 'FinanceMy'}</strong></div>
-        <label className="search-box"><Search size={18} /><input aria-label="Cari" placeholder="Cari transaksi, akun, atau budget..." /><kbd>⌘ K</kbd></label>
+        <label className="search-box"><Search size={18} /><input aria-label="Cari" placeholder="Cari transaksi, akun, atau budget..." /><kbd>Ctrl K</kbd></label>
         <div className="top-actions">
           <button className="icon-btn" onClick={toggleTheme} aria-label="Ganti tema">{theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}</button>
           <div className="notification-wrap"><button className="icon-btn notification-btn" onClick={() => setNotificationOpen(!notificationOpen)} aria-label="Notifikasi"><Bell size={19} />{notificationItems.length > 0 && <i>{notificationItems.length}</i>}</button>
