@@ -182,8 +182,9 @@ Aset visual siap pakai berada di `src/assets/`:
 
 - `financemy-logo-mark.png` — logo mark transparan untuk aplikasi dan favicon.
 - `financemy-logo-lockup.png` — logo horizontal transparan untuk materi promosi.
-- `financemy-hero-3d.png` — ilustrasi hero landing page dengan latar transparan.
-- `financemy-smart-capture.png` — ilustrasi roadmap pencatatan chat dan nota dengan latar transparan.
+- `financemy-hero-3d.png` — ilustrasi hero aktif dengan gaya 3D premium dan latar transparan.
+- `financemy-smart-capture.png` — ilustrasi smart capture aktif dengan gaya 3D premium dan latar transparan.
+- `financemy-hero-3d-handcrafted.png` dan `financemy-smart-capture-handcrafted.png` — varian matte handcrafted yang tetap disimpan sebagai alternatif.
 
 Social preview berada di `public/financemy-og.png`.
 
