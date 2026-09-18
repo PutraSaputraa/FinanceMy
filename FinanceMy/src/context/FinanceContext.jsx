@@ -1,7 +1,9 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { format } from 'date-fns'
 import { demoAccounts, demoBudgets, demoDebtRecords, demoGoals, demoTransactions, upcomingBills } from '../constants/demoData'
 import { useAuth } from './AuthContext'
-import { addAccount, addBudget, addUserRecord, createTransaction, markBillPaid, setAccountActive, subscribeCollection } from '../services/financeService'
+import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, markBillPaid, reconcileAccount, setAccountActive, subscribeCollection } from '../services/financeService'
+import { budgetMonthKey, monthlyBudgets } from '../utils/budgets'
 
 const FinanceContext = createContext(null)
 const collectionKeys = ['accounts', 'transactions', 'budgets', 'bills', 'recurringTransactions', 'goals', 'debts', 'receivables', 'installments']
@@ -42,11 +44,19 @@ export function FinanceProvider({ children }) {
   const [firebaseData, setFirebaseData] = useState(() => emptyFirebaseData())
   const [demoData, setDemoData] = useState(initialDemoData)
   const [toast, setToast] = useState(null)
+  const [today, setToday] = useState(() => new Date())
   const isDemo = Boolean(user?.isDemo)
   const ownsFirebaseData = Boolean(user && !isDemo && firebaseData.ownerUid === user.uid)
   const activeData = isDemo ? demoData : ownsFirebaseData ? firebaseData : emptyFirebaseData()
   const loading = Boolean(user && !isDemo && (!ownsFirebaseData || collectionKeys.some((key) => !firebaseData.loaded[key])))
   const error = ownsFirebaseData ? firebaseData.error : null
+
+  useEffect(() => {
+    const now = new Date()
+    const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    const timer = window.setTimeout(() => setToday(new Date()), nextDay.getTime() - now.getTime() + 1000)
+    return () => window.clearTimeout(timer)
+  }, [today])
 
   useEffect(() => {
     if (!user || user.isDemo) return undefined
@@ -63,11 +73,11 @@ export function FinanceProvider({ children }) {
       subscribeCollection(userId, 'accounts', (data) => update('accounts', data), undefined, fail('accounts')),
       subscribeCollection(userId, 'transactions', (data) => update('transactions', data.map((item) => ({
         ...item,
-        date: item.transactionDate?.toDate ? item.transactionDate.toDate().toISOString().slice(0, 10) : item.date,
+        date: item.transactionDate?.toDate ? format(item.transactionDate.toDate(), 'yyyy-MM-dd') : item.date,
         account: item.accountName || 'Akun',
         category: item.categoryName || item.category || 'Lainnya',
       }))), 'createdAt', fail('transactions')),
-      subscribeCollection(userId, 'budgets', (data) => update('budgets', data.map((item) => ({ ...item, spent: item.spent || 0, color: item.color || '#087f5b' }))), undefined, fail('budgets')),
+      subscribeCollection(userId, 'budgets', (data) => update('budgets', data.map((item) => ({ ...item, color: item.color || '#087f5b' }))), undefined, fail('budgets')),
       subscribeCollection(userId, 'bills', (data) => update('bills', data.map((item) => ({
         ...item,
         title: item.title || item.name,
@@ -130,8 +140,40 @@ export function FinanceProvider({ children }) {
 
   const addDemoBudget = async (values) => {
     if (user && !user.isDemo) await addBudget(user.uid, values)
-    else setDemoData((current) => ({ ...current, budgets: [...current.budgets, { ...values, id: crypto.randomUUID(), amount: Number(values.amount), spent: 0 }] }))
+    else setDemoData((current) => ({ ...current, budgets: [...current.budgets, { ...values, id: crypto.randomUUID(), amount: Number(values.amount), periodKey: budgetMonthKey() }] }))
     notify('Budget berhasil dibuat')
+  }
+
+  const removeBudget = async (budgetId) => {
+    if (user && !user.isDemo) await deleteBudget(user.uid, budgetId)
+    else setDemoData((current) => ({ ...current, budgets: current.budgets.filter((budget) => budget.id !== budgetId) }))
+    notify('Budget berhasil dihapus')
+  }
+
+  const reconcileBalance = async (accountId, actualBalance) => {
+    const balance = Number(actualBalance)
+    if (!Number.isFinite(balance) || balance < 0) throw new Error('Saldo nyata harus berupa angka nol atau lebih.')
+    if (user && !user.isDemo) {
+      const adjusted = await reconcileAccount(user.uid, accountId, balance)
+      if (adjusted) notify('Saldo berhasil direkonsiliasi')
+      return adjusted
+    }
+    const account = demoData.accounts.find((item) => item.id === accountId)
+    if (!account) throw new Error('Akun tidak ditemukan.')
+    const difference = balance - Number(account.currentBalance)
+    if (difference === 0) return false
+    const now = new Date()
+    setDemoData((current) => ({
+      ...current,
+      accounts: current.accounts.map((item) => item.id === accountId ? { ...item, currentBalance: balance } : item),
+      transactions: [{
+        id: crypto.randomUUID(), title: `Penyesuaian saldo ${account.name}`, type: 'adjustment',
+        amount: Math.abs(difference), adjustmentDelta: difference, accountId, account: account.name,
+        category: 'Penyesuaian saldo', date: format(now, 'yyyy-MM-dd'),
+      }, ...current.transactions],
+    }))
+    notify('Saldo berhasil direkonsiliasi')
+    return true
   }
 
   const toggleAccountActive = async (accountId, isActive) => {
@@ -176,6 +218,7 @@ export function FinanceProvider({ children }) {
 
   const value = {
     ...activeData,
+    budgets: monthlyBudgets(activeData.budgets, activeData.transactions, today),
     loading,
     error,
     isDemo,
@@ -184,6 +227,8 @@ export function FinanceProvider({ children }) {
     addDemoTransaction,
     addDemoAccount,
     addDemoBudget,
+    removeBudget,
+    reconcileBalance,
     toggleAccountActive,
     addRecurring,
     addGoal,

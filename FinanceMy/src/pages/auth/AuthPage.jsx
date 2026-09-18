@@ -21,24 +21,35 @@ export default function AuthPage({ mode = 'login' }) {
   const { register, handleSubmit, formState: { errors } } = useForm()
 
   const submit = async (values) => {
+    if (busy) return
     setBusy(true)
     setFeedback(null)
     try {
       if (mode === 'forgot') {
         await resetPassword(values.email)
         setFeedback({ tone: 'success', text: 'Tautan reset password sudah dikirim. Periksa email Anda.' })
+        setBusy(false)
       } else {
         await login(values.email, values.password)
         navigate('/dashboard')
       }
     } catch (error) {
       setFeedback({ tone: 'error', text: messages[error.code] || 'Terjadi kesalahan. Periksa data dan coba lagi.' })
-    } finally {
       setBusy(false)
     }
   }
 
-  const enterDemo = async () => { await demoLogin(); navigate('/dashboard') }
+  const enterDemo = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await demoLogin()
+      navigate('/dashboard')
+    } catch {
+      setFeedback({ tone: 'error', text: 'Demo belum dapat dibuka. Coba lagi.' })
+      setBusy(false)
+    }
+  }
   const isLogin = mode === 'login'
   const title = isLogin ? 'Masuk ke akunmu' : 'Atur ulang password'
   const subtitle = isLogin ? 'Lanjutkan progres keuanganmu hari ini.' : 'Kami akan mengirim tautan pemulihan ke emailmu.'
@@ -74,12 +85,12 @@ export default function AuthPage({ mode = 'login' }) {
 
           {isLogin && <div className="reference-forgot"><Link to="/lupa-password">Lupa password?</Link></div>}
           {feedback && <div className={`form-feedback ${feedback.tone}`}>{feedback.text}</div>}
-          <button className="reference-submit" disabled={busy}>{busy ? <span className="spinner"/> : <>{isLogin ? 'Masuk ke FinanceMy' : 'Kirim tautan reset'}<ArrowRight/></>}</button>
+          <button className="reference-submit" disabled={busy} aria-busy={busy}>{busy ? <><span className="spinner"/> Memproses...</> : <>{isLogin ? 'Masuk ke FinanceMy' : 'Kirim tautan reset'}<ArrowRight/></>}</button>
         </form>
 
         {mode !== 'forgot' && <>
           <div className="reference-divider"><span>atau coba tanpa membuat akun</span></div>
-          <button className="reference-demo" onClick={enterDemo}>Lihat dashboard demo</button>
+          <button className="reference-demo" onClick={enterDemo} disabled={busy}>Lihat dashboard demo</button>
           <small className="reference-demo-note">Tidak memerlukan akun Firebase</small>
           {!isLogin&&<p className="reference-auth-switch"><Link to="/login">Kembali ke halaman login</Link></p>}
         </>}

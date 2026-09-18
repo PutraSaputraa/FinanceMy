@@ -296,3 +296,44 @@ h1, h2, h3, .brand-row, .auth-brand, .admin-brand { font-family: "Manrope", sans
   .auth-reference-form-wrap { padding: 42px 20px; }
   .onboard-card { padding: 24px; }
 }
+
+.top-add { flex-shrink: 0; }
+.budget-explainer { padding: 15px 18px; margin-bottom: 13px; }
+.budget-explainer strong { display: block; font-size: 12px; margin-bottom: 5px; }
+.budget-explainer p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.budget-period { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.budget-period svg { width: 16px; height: 16px; }
+.budget-head { grid-template-columns: 10px minmax(0, 1fr) auto 30px; }
+.budget-head > div { min-width: 0; }
+.budget-delete { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.budget-delete:hover { background: color-mix(in srgb, var(--red) 10%, var(--surface)); color: var(--red); }
+.reconcile-difference { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+.reconcile-difference strong { color: var(--text); }
+.transaction-icon.adjustment { background: color-mix(in srgb, var(--purple) 12%, var(--surface)); color: var(--purple); }
+.transaction-amount.adjustment strong { color: var(--purple); }
+.reference-submit:disabled:hover { transform: none; cursor: wait; }
+.reference-demo:disabled { opacity: .55; cursor: not-allowed; }
+
+@media (max-width: 820px) {
+  .mobile-brand { min-width: 0; flex: 1; }
+  .mobile-brand strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-actions { margin-left: 0; gap: 7px; flex-shrink: 0; }
+  .top-actions > .icon-btn { display: none; }
+  .top-actions .notification-wrap .icon-btn { display: grid; }
+  .top-add { width: 42px; min-width: 42px; height: 42px; padding: 0; }
+  .top-add span { display: none; }
+  .top-add svg { width: 20px; height: 20px; flex-shrink: 0; }
+}
+
+@media (max-width: 560px) {
+  .page-title { flex-direction: column; align-items: stretch; gap: 13px; min-height: 0; }
+  .page-title .page-actions { width: 100%; flex-wrap: wrap; }
+  .page-title .page-actions > .primary-btn { flex: 1; min-width: max-content; }
+  .budget-actions { align-items: center; justify-content: space-between; }
+  .budget-head { grid-template-columns: 10px minmax(0, 1fr) auto 30px; }
+  .account-card-actions { flex-wrap: wrap; gap: 8px; }
+  .account-card-actions button { min-height: 34px; }
+  .budget-hero { padding: 18px; }
+  .budget-hero-progress p { gap: 8px; }
+  .adaptive-banner { padding: 16px; }
+}

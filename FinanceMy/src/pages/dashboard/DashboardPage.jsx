@@ -8,8 +8,9 @@ import ProgressBar from '../../components/common/ProgressBar'
 import { useFinance } from '../../context/FinanceContext'
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
-import { calculateAdaptiveBudget, calculateCashFlow } from '../../utils/calculations'
-import { buildCategoryData, buildMonthlyCashFlow, firstName, getGreeting, getMonthInfo, getPeriodSummary, getTodayExpense, percentageChange } from '../../utils/analytics'
+import { calculateCashFlow } from '../../utils/calculations'
+import { buildCategoryData, buildMonthlyCashFlow, firstName, getGreeting, getMonthInfo, getPeriodSummary, percentageChange } from '../../utils/analytics'
+import { dailyBudgetSummary, todayBudgetExpense } from '../../utils/budgets'
 import { formatCompact, formatCurrency, formatDate } from '../../utils/formatters'
 
 function MetricCard({ label, value, change, icon: Icon, tone, note }) {
@@ -41,12 +42,12 @@ export default function DashboardPage() {
   const previousBalance = totalBalance - (income - expense)
   const totalBudget = budgets.reduce((sum, budget) => sum + Number(budget.amount || 0), 0)
   const budgetSpent = budgets.reduce((sum, budget) => sum + Number(budget.spent || 0), 0)
-  const todayExpense = getTodayExpense(transactions, now)
+  const todayExpense = todayBudgetExpense(transactions, budgets, now)
   const dailyAverage = expense / Math.max(month.daysElapsed, 1)
   const obligations = bills
     .filter((bill) => !['Sudah dibayar', 'Lunas', 'Dibatalkan'].includes(bill.status))
     .reduce((sum, bill) => sum + Number(bill.amount || 0), 0)
-  const adaptive = calculateAdaptiveBudget({ amount: totalBudget, spent: budgetSpent, daysInPeriod: month.daysInMonth, daysRemaining: month.daysRemaining, method: 'adaptive' })
+  const adaptive = dailyBudgetSummary(budgets, month)
   const forecast = calculateCashFlow({ balance: totalBalance, obligations, dailyAverage, days: month.daysRemaining })
   const amount = (value) => hiddenAmounts ? 'Rp ••••••••' : formatCurrency(value)
   const expensePercentage = totalBudget ? Math.round((budgetSpent / totalBudget) * 100) : 0
@@ -71,10 +72,10 @@ export default function DashboardPage() {
         <button className="link-btn" onClick={()=>navigate('/akun')}>{accounts.length ? 'Lihat semua akun' : 'Tambah akun'} <ArrowRight/></button>
       </article>
       <article className="card span-4 daily-budget">
-        <div className="section-head"><div><h2>Batas hari ini</h2><p>Budget harian adaptif</p></div><span className={`status-pill ${dailyRemaining < 0 ? 'danger' : 'success'}`}>{totalBudget ? dailyRemaining < 0 ? 'Terlewati' : 'Aman' : 'Belum diatur'}</span></div>
+        <div className="section-head"><div><h2>Panduan hari ini</h2><p>Dari budget yang aktif</p></div><span className={`status-pill ${dailyRemaining < 0 ? 'danger' : 'success'}`}>{totalBudget ? dailyRemaining < 0 ? 'Terlewati' : 'Aman' : 'Belum diatur'}</span></div>
         <div className="daily-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="43"/><circle className="value" cx="50" cy="50" r="43" style={{strokeDashoffset: `${270-(270*dailyRatio)}`}}/></svg><div><small>Tersisa</small><strong>{formatCurrency(dailyRemaining)}</strong><span>dari {formatCurrency(adaptive.availableToday)}</span></div></div>
         <div className="daily-stats"><span>Target tetap<strong>{formatCurrency(adaptive.fixedDaily)}</strong></span><span>Terpakai hari ini<strong>{formatCurrency(todayExpense)}</strong></span></div>
-        <p className="daily-hint"><Sparkles/>{totalBudget ? <>Batas berdasarkan sisa budget untuk <strong>{month.daysRemaining} hari</strong> tersisa.</> : <>Buat budget agar batas harian dapat dihitung.</>}</p>
+        <p className="daily-hint"><Sparkles/>{totalBudget ? <>Pengeluaran kategori yang dibudgetkan; <strong>{month.daysRemaining} hari</strong> tersisa bulan ini.</> : <>Buat budget agar panduan harian dapat dihitung.</>}</p>
       </article>
     </section>
 

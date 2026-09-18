@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { format } from 'date-fns'
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from 'lucide-react'
 import { useFinance } from '../../context/FinanceContext'
 
@@ -7,9 +8,9 @@ export default function TransactionForm({ onDone }) {
   const [type, setType] = useState('expense')
   const { accounts, addDemoTransaction } = useFinance()
   const activeAccounts = accounts.filter((account) => account.isActive !== false)
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({ defaultValues: { date: '2026-08-04', time: '12:00', needType: 'kebutuhan', account: activeAccounts[0]?.name } })
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm({ defaultValues: { date: format(new Date(), 'yyyy-MM-dd'), time: format(new Date(), 'HH:mm'), needType: 'kebutuhan', account: activeAccounts[0]?.name } })
   const source = watch('account')
-  const submit = async (values) => { await addDemoTransaction({ ...values, type, category: type === 'transfer' ? 'Transfer' : values.category, amount: Number(values.amount) }); onDone() }
+  const submit = async (values) => { await addDemoTransaction({ ...values, title: type === 'transfer' ? `Transfer ke ${values.destinationAccount}` : values.title, type, category: type === 'transfer' ? 'Transfer' : values.category, amount: Number(values.amount) }); onDone() }
   return <form className="finance-form" onSubmit={handleSubmit(submit)}>
     <div className="type-tabs"><button type="button" className={type==='expense'?'active expense':''} onClick={()=>setType('expense')}><ArrowUpRight/>Pengeluaran</button><button type="button" className={type==='income'?'active income':''} onClick={()=>setType('income')}><ArrowDownLeft/>Pemasukan</button><button type="button" className={type==='transfer'?'active transfer':''} onClick={()=>setType('transfer')}><ArrowLeftRight/>Transfer</button></div>
     {type !== 'transfer' && <label className="full">Nama {type==='income'?'pemasukan':'pengeluaran'}<input autoFocus placeholder={type==='income'?'Contoh: Gaji bulanan':'Contoh: Makan siang'} {...register('title',{required:'Nama transaksi wajib diisi.'})}/>{errors.title&&<small className="field-error">{errors.title.message}</small>}</label>}

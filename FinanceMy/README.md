@@ -13,7 +13,7 @@ FinanceMy adalah aplikasi web pengelolaan keuangan pribadi berbasis React dan Fi
 - Dashboard saldo, arus kas, budget adaptif, tagihan, transaksi, forecast, dan insight.
 - Form pemasukan, pengeluaran, dan transfer dengan validasi.
 - Akun/dompet dan rekonsiliasi saldo.
-- Budget fixed, adaptive, rollover, saving, dan hybrid.
+- Budget per kategori untuk bulan kalender berjalan, dengan panduan harian tetap atau adaptif.
 - Transaksi rutin, konfirmasi tagihan, dan occurrence key anti-duplikasi.
 - Target keuangan, dana darurat, utang, piutang, dan cicilan.
 - Laporan grafik serta ringkasan kesehatan keuangan yang transparan.
@@ -64,6 +64,10 @@ npm run build
 ```
 
 Hasil build berada di folder `dist/`.
+
+## Cara kerja budget
+
+Budget dibuat untuk kategori pengeluaran pada bulan berjalan. Nominal terpakai dihitung dari transaksi kategori yang sama pada bulan tersebut. Budget dapat dihapus tanpa menghapus transaksi. Saat bulan berganti, budget lama tidak lagi aktif; buat budget baru untuk bulan berikutnya. Sisa budget tidak otomatis dibawa ke bulan berikutnya. Mode **Tetap** membagi batas bulanan dengan jumlah hari dalam bulan, sedangkan **Adaptif** membagi sisa budget dengan jumlah hari yang tersisa.
 
 ## Admin dan provisioning pengguna
 

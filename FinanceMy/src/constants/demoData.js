@@ -1,3 +1,11 @@
+import { budgetMonthKey } from '../utils/budgets'
+
+const demoDate = (day) => {
+  const now = new Date()
+  const date = new Date(now.getFullYear(), now.getMonth(), Math.min(day, now.getDate()))
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
 export const demoAccounts = [
   { id: 'bsi', name: 'BSI', type: 'Rekening bank', initialBalance: 5000000, currentBalance: 4500000, color: '#087f5b', icon: 'landmark', isActive: true },
   { id: 'blu', name: 'Blu', type: 'Tabungan', initialBalance: 3000000, currentBalance: 3000000, color: '#2271b3', icon: 'piggy-bank', isActive: true },
@@ -6,20 +14,20 @@ export const demoAccounts = [
 ]
 
 export const demoTransactions = [
-  { id: 't1', title: 'Gaji bulanan', category: 'Gaji', account: 'BSI', type: 'income', amount: 6000000, date: '2026-08-01', needType: 'wajib' },
-  { id: 't2', title: 'Belanja supermarket', category: 'Kebutuhan Rumah', account: 'BSI', type: 'expense', amount: 482500, date: '2026-08-04', needType: 'kebutuhan' },
-  { id: 't3', title: 'Makan siang', category: 'Makan & Minum', account: 'GoPay', type: 'expense', amount: 25000, date: '2026-08-04', needType: 'kebutuhan' },
-  { id: 't4', title: 'Transportasi online', category: 'Transportasi', account: 'GoPay', type: 'expense', amount: 18000, date: '2026-08-03', needType: 'kebutuhan' },
-  { id: 't5', title: 'WiFi rumah', category: 'Tagihan', account: 'BSI', type: 'expense', amount: 350000, date: '2026-08-02', needType: 'wajib' },
-  { id: 't6', title: 'Top up GoPay', category: 'Transfer', account: 'BSI → GoPay', type: 'transfer', amount: 300000, date: '2026-08-02', needType: 'transfer' },
-  { id: 't7', title: 'Kopi sore', category: 'Makan & Minum', account: 'Tunai', type: 'expense', amount: 28000, date: '2026-08-01', needType: 'keinginan' },
+  { id: 't1', title: 'Gaji bulanan', category: 'Gaji', account: 'BSI', type: 'income', amount: 6000000, date: demoDate(1), needType: 'wajib' },
+  { id: 't2', title: 'Belanja supermarket', category: 'Kebutuhan Rumah', account: 'BSI', type: 'expense', amount: 482500, date: demoDate(4), needType: 'kebutuhan' },
+  { id: 't3', title: 'Makan siang', category: 'Makan & Minum', account: 'GoPay', type: 'expense', amount: 25000, date: demoDate(4), needType: 'kebutuhan' },
+  { id: 't4', title: 'Transportasi online', category: 'Transportasi', account: 'GoPay', type: 'expense', amount: 18000, date: demoDate(3), needType: 'kebutuhan' },
+  { id: 't5', title: 'WiFi rumah', category: 'Tagihan', account: 'BSI', type: 'expense', amount: 350000, date: demoDate(2), needType: 'wajib' },
+  { id: 't6', title: 'Top up GoPay', category: 'Transfer', account: 'BSI → GoPay', type: 'transfer', amount: 300000, date: demoDate(2), needType: 'transfer' },
+  { id: 't7', title: 'Kopi sore', category: 'Makan & Minum', account: 'Tunai', type: 'expense', amount: 28000, date: demoDate(1), needType: 'keinginan' },
 ]
 
 export const demoBudgets = [
-  { id: 'b1', name: 'Makan & Minum', amount: 3000000, spent: 1850000, method: 'adaptive', color: '#087f5b' },
-  { id: 'b2', name: 'Transportasi', amount: 750000, spent: 652500, method: 'adaptive', color: '#2271b3' },
-  { id: 'b3', name: 'Hiburan', amount: 500000, spent: 215000, method: 'saving', color: '#8b5cf6' },
-  { id: 'b4', name: 'Langganan', amount: 500000, spent: 500000, method: 'fixed', color: '#e08a17' },
+  { id: 'b1', name: 'Makan & Minum', amount: 3000000, method: 'adaptive', color: '#087f5b', periodKey: budgetMonthKey() },
+  { id: 'b2', name: 'Transportasi', amount: 750000, method: 'adaptive', color: '#2271b3', periodKey: budgetMonthKey() },
+  { id: 'b3', name: 'Hiburan', amount: 500000, method: 'adaptive', color: '#8b5cf6', periodKey: budgetMonthKey() },
+  { id: 'b4', name: 'Langganan', amount: 500000, method: 'fixed', color: '#e08a17', periodKey: budgetMonthKey() },
 ]
 
 export const cashFlowData = [

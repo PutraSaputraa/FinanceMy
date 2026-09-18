@@ -1,5 +1,6 @@
-import { addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { budgetMonthKey } from '../utils/budgets'
 
 export function subscribeCollection(userId, collectionName, callback, sortField, onError) {
   const ref = collection(db, 'users', userId, collectionName)
@@ -24,8 +25,42 @@ export async function setAccountActive(userId, accountId, isActive) {
 
 export async function addBudget(userId, values) {
   return addDoc(collection(db, 'users', userId, 'budgets'), {
-    ...values, amount: Number(values.amount), warningThreshold: 80, isActive: true,
+    ...values, amount: Number(values.amount), periodKey: budgetMonthKey(), warningThreshold: 80, isActive: true,
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteBudget(userId, budgetId) {
+  return deleteDoc(doc(db, 'users', userId, 'budgets', budgetId))
+}
+
+export async function reconcileAccount(userId, accountId, actualBalance) {
+  const accountRef = doc(db, 'users', userId, 'accounts', accountId)
+  const transactionRef = doc(collection(db, 'users', userId, 'transactions'))
+  return runTransaction(db, async (transaction) => {
+    const accountSnapshot = await transaction.get(accountRef)
+    if (!accountSnapshot.exists()) throw new Error('Akun tidak ditemukan.')
+    const account = accountSnapshot.data()
+    if (account.isActive === false) throw new Error('Akun sudah nonaktif.')
+    const previousBalance = Number(account.currentBalance)
+    const difference = actualBalance - previousBalance
+    if (difference === 0) return false
+    transaction.update(accountRef, { currentBalance: actualBalance, updatedAt: serverTimestamp() })
+    transaction.set(transactionRef, {
+      title: `Penyesuaian saldo ${account.name}`,
+      type: 'adjustment',
+      amount: Math.abs(difference),
+      adjustmentDelta: difference,
+      balanceBefore: previousBalance,
+      balanceAfter: actualBalance,
+      accountId,
+      accountName: account.name,
+      categoryName: 'Penyesuaian saldo',
+      transactionDate: Timestamp.fromDate(new Date()),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+    return true
   })
 }
 

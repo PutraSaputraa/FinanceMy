@@ -72,7 +72,7 @@ export default function AppLayout() {
           <div className="notification-wrap"><button className="icon-btn notification-btn" onClick={() => setNotificationOpen(!notificationOpen)} aria-label="Notifikasi"><Bell size={19} />{notificationItems.length > 0 && <i>{notificationItems.length}</i>}</button>
             {notificationOpen && <div className="notification-popover"><div><strong>Notifikasi</strong></div>{notificationItems.length ? notificationItems.map((item, index)=><p key={`${item.title}-${index}`}><span className={`notif-dot ${item.tone}`} />{item.title}<small>{item.detail}</small></p>) : <p>Belum ada notifikasi<small>Semua kondisi keuanganmu akan dipantau di sini.</small></p>}</div>}
           </div>
-          <button className="primary-btn top-add" onClick={() => navigate('/transaksi?add=true')}><Plus size={18} /> Tambah transaksi</button>
+          <button className="primary-btn top-add" onClick={() => navigate('/transaksi?add=true')} aria-label="Tambah transaksi" title="Tambah transaksi"><Plus size={18} /><span>Tambah transaksi</span></button>
         </div>
       </header>
       <div className="page-content"><Outlet /></div>

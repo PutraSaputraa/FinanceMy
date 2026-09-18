@@ -10,7 +10,7 @@ import { getMonthInfo } from '../../utils/analytics'
 import { formatCurrency } from '../../utils/formatters'
 
 export default function TransactionsPage(){
-  const [params,setParams]=useSearchParams(); const [localOpen,setLocalOpen]=useState(false); const [query,setQuery]=useState(''); const [type,setType]=useState('all'); const {transactions}=useFinance(); const open=localOpen||params.get('add')==='true'; const month=getMonthInfo()
+  const [params,setParams]=useSearchParams(); const [localOpen,setLocalOpen]=useState(false); const [query,setQuery]=useState(params.get('search')||''); const [type,setType]=useState('all'); const {transactions}=useFinance(); const open=localOpen||params.get('add')==='true'; const month=getMonthInfo()
   const close=()=>{setLocalOpen(false);setParams({})}
   const filtered=useMemo(()=>transactions.filter(t=>(type==='all'||t.type===type)&&`${t.title} ${t.category} ${t.account}`.toLowerCase().includes(query.toLowerCase())),[transactions,query,type])
   const exportCsv=()=>{const content=['Nama,Jenis,Kategori,Akun,Nominal,Tanggal',...transactions.map(t=>[t.title,t.type,t.category,t.account,t.amount,t.date].join(','))].join('\n'); const blob=new Blob([content],{type:'text/csv'}); const url=URL.createObjectURL(blob); const link=document.createElement('a');link.href=url;link.download='transaksi-financemy.csv';link.click();URL.revokeObjectURL(url)}
