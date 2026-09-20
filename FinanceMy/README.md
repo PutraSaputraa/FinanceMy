@@ -11,7 +11,7 @@ FinanceMy adalah aplikasi web pengelolaan keuangan pribadi berbasis React dan Fi
 - Login, lupa password, protected route, dan onboarding.
 - Login pengguna tertutup dan halaman admin `/admin` untuk provisioning akun.
 - Dashboard saldo, arus kas, budget adaptif, tagihan, transaksi, forecast, dan insight.
-- Form pemasukan, pengeluaran, dan transfer dengan validasi.
+- Form pemasukan, pengeluaran, dan transfer dengan validasi, serta edit dan hapus transaksi yang memperbarui saldo akun.
 - Akun/dompet dan rekonsiliasi saldo.
 - Budget per kategori untuk bulan kalender berjalan, dengan panduan harian tetap atau adaptif.
 - Transaksi rutin, konfirmasi tagihan, dan occurrence key anti-duplikasi.

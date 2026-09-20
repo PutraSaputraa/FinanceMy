@@ -19,7 +19,7 @@ export const demoTransactions = [
   { id: 't3', title: 'Makan siang', category: 'Makan & Minum', account: 'GoPay', type: 'expense', amount: 25000, date: demoDate(4), needType: 'kebutuhan' },
   { id: 't4', title: 'Transportasi online', category: 'Transportasi', account: 'GoPay', type: 'expense', amount: 18000, date: demoDate(3), needType: 'kebutuhan' },
   { id: 't5', title: 'WiFi rumah', category: 'Tagihan', account: 'BSI', type: 'expense', amount: 350000, date: demoDate(2), needType: 'wajib' },
-  { id: 't6', title: 'Top up GoPay', category: 'Transfer', account: 'BSI → GoPay', type: 'transfer', amount: 300000, date: demoDate(2), needType: 'transfer' },
+  { id: 't6', title: 'Top up GoPay', category: 'Transfer', account: 'BSI', accountId: 'bsi', destinationAccount: 'GoPay', destinationAccountId: 'gopay', type: 'transfer', amount: 300000, date: demoDate(2), needType: 'transfer' },
   { id: 't7', title: 'Kopi sore', category: 'Makan & Minum', account: 'Tunai', type: 'expense', amount: 28000, date: demoDate(1), needType: 'keinginan' },
 ]
 

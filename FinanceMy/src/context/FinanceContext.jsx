@@ -2,8 +2,9 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { demoAccounts, demoBudgets, demoDebtRecords, demoGoals, demoTransactions, upcomingBills } from '../constants/demoData'
 import { useAuth } from './AuthContext'
-import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, markBillPaid, reconcileAccount, setAccountActive, subscribeCollection } from '../services/financeService'
+import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, deleteTransaction, markBillPaid, reconcileAccount, setAccountActive, subscribeCollection, updateTransaction } from '../services/financeService'
 import { budgetMonthKey, monthlyBudgets } from '../utils/budgets'
+import { balanceChanges } from '../utils/transactionBalances'
 
 const FinanceContext = createContext(null)
 const collectionKeys = ['accounts', 'transactions', 'budgets', 'bills', 'recurringTransactions', 'goals', 'debts', 'receivables', 'installments']
@@ -37,6 +38,39 @@ function initialDemoData() {
     receivables: demoDebtRecords.piutang,
     installments: demoDebtRecords.cicilan,
   }
+}
+
+function transactionValues(values, accounts) {
+  const source = accounts.find((account) => account.id === values.accountId || account.name === values.account)
+  const destination = values.type === 'transfer'
+    ? accounts.find((account) => account.id === values.destinationAccountId || account.name === values.destinationAccount)
+    : null
+  if (!source) throw new Error('Akun transaksi tidak ditemukan.')
+  if (values.type === 'transfer' && !destination) throw new Error('Akun tujuan tidak ditemukan.')
+  if (destination?.id === source.id) throw new Error('Akun sumber dan tujuan harus berbeda.')
+  const amount = Number(values.amount)
+  const adminFee = values.type === 'transfer' ? Number(values.adminFee || 0) : 0
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error('Nominal harus lebih dari nol.')
+  if (!Number.isFinite(adminFee) || adminFee < 0) throw new Error('Biaya admin tidak valid.')
+  const transactionDate = new Date(`${values.date}T${values.time || '12:00'}`)
+  if (Number.isNaN(transactionDate.getTime())) throw new Error('Tanggal transaksi tidak valid.')
+  return {
+    ...values, amount, adminFee, accountId: source.id, accountName: source.name, account: source.name,
+    destinationAccountId: destination?.id || null,
+    destinationAccountName: destination?.name || null,
+    destinationAccount: destination?.name || null,
+    categoryName: values.category,
+    transactionDate,
+  }
+}
+
+function applyDemoBalanceChanges(accounts, changes) {
+  return accounts.map((account) => ({
+    ...account,
+    currentBalance: Number(account.currentBalance) + changes
+      .filter((change) => change.accountId === account.id || (!change.accountId && change.accountName === account.name))
+      .reduce((total, change) => total + change.delta, 0),
+  }))
 }
 
 export function FinanceProvider({ children }) {
@@ -73,7 +107,7 @@ export function FinanceProvider({ children }) {
       subscribeCollection(userId, 'accounts', (data) => update('accounts', data), undefined, fail('accounts')),
       subscribeCollection(userId, 'transactions', (data) => update('transactions', data.map((item) => ({
         ...item,
-        date: item.transactionDate?.toDate ? format(item.transactionDate.toDate(), 'yyyy-MM-dd') : item.date,
+        date: item.transactionDate?.toDate ? format(item.transactionDate.toDate(), 'yyyy-MM-dd') : item.date || (item.createdAt?.toDate ? format(item.createdAt.toDate(), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')),
         account: item.accountName || 'Akun',
         category: item.categoryName || item.category || 'Lainnya',
       }))), 'createdAt', fail('transactions')),
@@ -99,37 +133,55 @@ export function FinanceProvider({ children }) {
   }
 
   const addDemoTransaction = async (values) => {
+    const record = transactionValues(values, activeData.accounts)
     if (user && !user.isDemo) {
-      const source = activeData.accounts.find((account) => account.name === values.account)
-      const destination = activeData.accounts.find((account) => account.name === values.destinationAccount)
       await createTransaction(user.uid, {
-        ...values,
-        accountId: source?.id,
-        accountName: source?.name,
-        destinationAccountId: destination?.id || null,
-        destinationAccountName: destination?.name || null,
-        categoryName: values.category,
-        transactionDate: new Date(`${values.date}T${values.time || '12:00'}`),
+        ...record,
         idempotencyKey: crypto.randomUUID(),
       })
       notify('Transaksi berhasil ditambahkan')
       return
     }
-    const transaction = { ...values, id: crypto.randomUUID(), amount: Number(values.amount), date: values.date || new Date().toISOString().slice(0, 10) }
+    const transaction = { ...record, id: crypto.randomUUID() }
     setDemoData((current) => ({
       ...current,
       transactions: [transaction, ...current.transactions],
-      accounts: current.accounts.map((account) => {
-        if (account.name !== values.account && account.name !== values.destinationAccount) return account
-        if (values.type === 'transfer') {
-          if (account.name === values.account) return { ...account, currentBalance: account.currentBalance - transaction.amount - Number(values.adminFee || 0) }
-          return { ...account, currentBalance: account.currentBalance + transaction.amount }
-        }
-        const delta = values.type === 'income' || values.type === 'refund' ? transaction.amount : -transaction.amount
-        return { ...account, currentBalance: account.currentBalance + delta }
-      }),
+      accounts: applyDemoBalanceChanges(current.accounts, balanceChanges(null, transaction)),
     }))
     notify('Transaksi berhasil ditambahkan')
+  }
+
+  const editTransaction = async (transactionId, values) => {
+    const previous = activeData.transactions.find((item) => item.id === transactionId)
+    if (!previous) throw new Error('Transaksi tidak ditemukan.')
+    if (previous.type === 'adjustment') throw new Error('Penyesuaian saldo hanya dapat dihapus.')
+    const record = transactionValues(values, activeData.accounts)
+    if (user && !user.isDemo) await updateTransaction(user.uid, transactionId, record)
+    else {
+      const next = { ...previous, ...record }
+      const changes = balanceChanges(previous, next)
+      setDemoData((current) => ({
+        ...current,
+        transactions: current.transactions.map((item) => item.id === transactionId ? next : item),
+        accounts: applyDemoBalanceChanges(current.accounts, changes),
+      }))
+    }
+    notify('Transaksi berhasil diperbarui')
+  }
+
+  const removeTransaction = async (transactionId) => {
+    const previous = activeData.transactions.find((item) => item.id === transactionId)
+    if (!previous) throw new Error('Transaksi tidak ditemukan.')
+    if (user && !user.isDemo) await deleteTransaction(user.uid, transactionId)
+    else {
+      const changes = balanceChanges(previous, null)
+      setDemoData((current) => ({
+        ...current,
+        transactions: current.transactions.filter((item) => item.id !== transactionId),
+        accounts: applyDemoBalanceChanges(current.accounts, changes),
+      }))
+    }
+    notify('Transaksi berhasil dihapus')
   }
 
   const addDemoAccount = async (values) => {
@@ -225,6 +277,8 @@ export function FinanceProvider({ children }) {
     toast,
     notify,
     addDemoTransaction,
+    editTransaction,
+    removeTransaction,
     addDemoAccount,
     addDemoBudget,
     removeBudget,

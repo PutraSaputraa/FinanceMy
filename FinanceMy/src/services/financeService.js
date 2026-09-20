@@ -1,6 +1,7 @@
 import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { budgetMonthKey } from '../utils/budgets'
+import { balanceChanges, transactionEffects } from '../utils/transactionBalances'
 
 export function subscribeCollection(userId, collectionName, callback, sortField, onError) {
   const ref = collection(db, 'users', userId, collectionName)
@@ -113,10 +114,55 @@ export async function createTransaction(userId, values) {
   })
 }
 
+async function changeTransaction(userId, transactionId, values) {
+  const transactionRef = doc(db, 'users', userId, 'transactions', transactionId)
+  return runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(transactionRef)
+    if (!snapshot.exists()) throw new Error('Transaksi tidak ditemukan.')
+    const previous = snapshot.data()
+    if (values && previous.type === 'adjustment') throw new Error('Penyesuaian saldo hanya dapat dihapus.')
+
+    const next = values ? {
+      ...previous,
+      ...values,
+      amount: Number(values.amount),
+      adminFee: Number(values.adminFee || 0),
+      transactionDate: Timestamp.fromDate(values.transactionDate),
+      updatedAt: serverTimestamp(),
+    } : null
+    const changes = balanceChanges(previous, next)
+    const nextAccountIds = new Set(transactionEffects(next).map((effect) => effect.accountId))
+    const accounts = []
+    for (const change of changes) {
+      if (!change.accountId) throw new Error('Akun pada transaksi lama tidak dapat ditemukan.')
+      const accountRef = doc(db, 'users', userId, 'accounts', change.accountId)
+      const accountSnapshot = await transaction.get(accountRef)
+      if (!accountSnapshot.exists()) {
+        if (nextAccountIds.has(change.accountId)) throw new Error('Akun pada transaksi tidak ditemukan.')
+        continue
+      }
+      accounts.push({ accountRef, balance: Number(accountSnapshot.data().currentBalance) + change.delta })
+    }
+    for (const { accountRef, balance } of accounts) {
+      transaction.update(accountRef, { currentBalance: balance, updatedAt: serverTimestamp() })
+    }
+    if (next) transaction.update(transactionRef, next)
+    else transaction.delete(transactionRef)
+  })
+}
+
+export async function updateTransaction(userId, transactionId, values) {
+  return changeTransaction(userId, transactionId, values)
+}
+
+export async function deleteTransaction(userId, transactionId) {
+  return changeTransaction(userId, transactionId, null)
+}
+
 export async function markBillPaid(userId, billId, accountId) {
   const billRef = doc(db, 'users', userId, 'bills', billId)
   const bill = await getDoc(billRef)
   if (!bill.exists()) throw new Error('Tagihan tidak ditemukan.')
   const occurrenceKey = `${billId}_${bill.data().dueDate.toDate().toISOString().slice(0, 7)}`
-  return createTransaction(userId, { type: 'expense', title: bill.data().name, amount: bill.data().amount, accountId, categoryId: bill.data().categoryId, billId, occurrenceKey })
+  return createTransaction(userId, { type: 'expense', title: bill.data().name, amount: bill.data().amount, accountId, accountName: bill.data().accountName || 'Akun', categoryId: bill.data().categoryId || null, categoryName: bill.data().categoryName || 'Tagihan', billId, occurrenceKey, transactionDate: new Date() })
 }
