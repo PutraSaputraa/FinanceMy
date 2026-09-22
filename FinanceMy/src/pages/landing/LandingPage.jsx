@@ -23,7 +23,7 @@ import heroVisual from '../../assets/financemy-hero-3d.png'
 import smartCaptureVisual from '../../assets/financemy-smart-capture.png'
 import './landing.css'
 
-const salesNumber = (import.meta.env.VITE_SALES_WHATSAPP || '628155181494').replace(/\D/g, '')
+const salesNumber = (import.meta.env.VITE_SALES_WHATSAPP || '6285128026512').replace(/\D/g, '')
 const salesMessage = encodeURIComponent('Halo Admin FinanceMy, saya tertarik untuk melihat demo dan mendapatkan akses FinanceMy.')
 const salesUrl = `https://wa.me/${salesNumber}?text=${salesMessage}`
 
