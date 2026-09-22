@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase-admin/firestore'
+import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { adminAuth, adminDb, response as jsonResponse } from './_lib/firebase-admin.mjs'
 import { createPairingCode, hashPairingCode, matchesConnectorKey, validPairingCode, validPhone, validSenderId } from './_lib/whatsapp-pairing.mjs'
 
@@ -31,9 +31,34 @@ async function requireUser(request) {
   } catch {
     throw new RequestError(401, 'Sesi tidak valid atau sudah berakhir.')
   }
-  const user = await adminDb.doc(`users/${token.uid}`).get()
-  if (!user.exists || user.data()?.status === 'disabled') throw new RequestError(403, 'Akun tidak aktif.')
-  return token.uid
+  const profile = await adminDb.doc(`users/${token.uid}`).get()
+  if (profile.data()?.status === 'disabled') throw new RequestError(403, 'Akun tidak aktif.')
+  if (profile.exists) return { uid: token.uid, profileExists: true }
+
+  const authUser = await adminAuth.getUser(token.uid)
+  if (authUser.disabled) throw new RequestError(403, 'Akun tidak aktif.')
+  return { uid: token.uid, profileExists: false, authUser }
+}
+
+async function ensureProfile(uid, authUser) {
+  const ref = adminDb.doc(`users/${uid}`)
+  await adminDb.runTransaction(async (transaction) => {
+    const profile = await transaction.get(ref)
+    if (profile.exists) {
+      if (profile.data()?.status === 'disabled') throw new RequestError(403, 'Akun tidak aktif.')
+      return
+    }
+    transaction.create(ref, {
+      name: authUser.displayName || authUser.email?.split('@')[0] || 'Pengguna',
+      email: authUser.email || '',
+      status: 'active',
+      currency: 'IDR',
+      budgetStartDay: 1,
+      onboardingCompleted: false,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+  })
 }
 
 function connectionBody(snapshot) {
@@ -160,15 +185,18 @@ export default async (request) => {
         return response(401, { error: 'Konektor tidak dikenal.' })
       }
       if (request.method !== 'POST') return response(405, { error: 'Metode tidak didukung.' })
-      return claim(await readJson(request))
+      return await claim(await readJson(request))
     }
 
-    const uid = await requireUser(request)
+    const { uid, profileExists, authUser } = await requireUser(request)
     if (request.method === 'GET') {
       return response(200, connectionBody(await adminDb.doc(`waConnections/${uid}`).get()))
     }
-    if (request.method === 'POST') return createCode(uid)
-    if (request.method === 'DELETE') return disconnect(uid)
+    if (request.method === 'POST') {
+      if (!profileExists) await ensureProfile(uid, authUser)
+      return await createCode(uid)
+    }
+    if (request.method === 'DELETE') return await disconnect(uid)
     return response(405, { error: 'Metode tidak didukung.' })
   } catch (error) {
     if (error instanceof RequestError) return response(error.status, { error: error.message })
