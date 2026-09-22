@@ -90,6 +90,7 @@ h1, h2, h3, .brand-row, .auth-brand, .admin-brand { font-family: "Manrope", sans
 .side-nav a:hover { color: #fff; border-color: rgba(255,255,255,.06); background: rgba(255,255,255,.055); transform: translateX(2px); }
 .side-nav a.active { color: #fff; border-color: rgba(115,232,188,.16); background: linear-gradient(135deg, rgba(51,208,151,.18), rgba(255,255,255,.045)); box-shadow: inset 3px 0 #4cdaa7, 0 12px 28px rgba(0,0,0,.09); }
 .side-nav a.active svg { color: #65e0b3; }
+.side-nav .nav-badge { margin-left: auto; min-width: 19px; height: 19px; padding: 0 5px; display: inline-grid; place-items: center; border-radius: 999px; background: #f3a846; color: #23352d; font-size: 10px; font-weight: 800; line-height: 1; }
 
 .cash-snapshot {
   margin: 12px 2px 13px;

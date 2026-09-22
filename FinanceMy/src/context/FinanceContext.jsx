@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { format } from 'date-fns'
+import { addDays, format } from 'date-fns'
 import { demoAccounts, demoBudgets, demoDebtRecords, demoGoals, demoTransactions, upcomingBills } from '../constants/demoData'
 import { useAuth } from './AuthContext'
-import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, deleteTransaction, markBillPaid, reconcileAccount, setAccountActive, subscribeCollection, updateTransaction } from '../services/financeService'
+import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, deleteRecurring as deleteRecurringRecord, deleteTransaction, markBillPaid, payRecurring as payRecurringRecord, reconcileAccount, setAccountActive, subscribeCollection, updateRecurring as saveRecurringRecord, updateTransaction } from '../services/financeService'
 import { budgetMonthKey, monthlyBudgets } from '../utils/budgets'
+import { buildRecurringPayment, recurringCategory, recurringDateKey, recurringDueDate } from '../utils/recurring'
 import { balanceChanges } from '../utils/transactionBalances'
 
 const FinanceContext = createContext(null)
@@ -32,7 +33,7 @@ function initialDemoData() {
     transactions: demoTransactions,
     budgets: demoBudgets,
     bills: upcomingBills,
-    recurringTransactions: upcomingBills.map((bill) => ({ ...bill, name: bill.title, nextDate: bill.date, frequency: 'Bulanan', type: bill.title === 'Netflix' ? 'Langganan' : 'Tagihan' })),
+    recurringTransactions: upcomingBills.map((bill, index) => ({ ...bill, name: bill.title, nextDate: format(addDays(new Date(), [3, 7, 10][index]), 'yyyy-MM-dd'), frequency: 'Bulanan', type: bill.title === 'Netflix' ? 'Langganan' : 'Tagihan' })),
     goals: demoGoals,
     debts: demoDebtRecords.utang,
     receivables: demoDebtRecords.piutang,
@@ -237,11 +238,64 @@ export function FinanceProvider({ children }) {
     notify(isActive ? 'Akun berhasil diaktifkan kembali' : 'Akun berhasil dinonaktifkan')
   }
 
+  const recurringValues = (values, previous = null) => {
+    const account = activeData.accounts.find((item) => item.id === values.accountId && item.isActive !== false)
+    const amount = Number(values.amount)
+    const nextDate = recurringDateKey(values.nextDate)
+    if (!values.name?.trim()) throw new Error('Nama transaksi rutin wajib diisi.')
+    if (!['Langganan', 'Tagihan', 'Cicilan', 'Pemasukan rutin'].includes(values.type)) throw new Error('Jenis transaksi rutin tidak valid.')
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('Nominal harus lebih dari nol.')
+    if (!account) throw new Error('Pilih akun yang masih aktif.')
+    if (!nextDate) throw new Error('Tanggal berikutnya tidak valid.')
+    if (!['Mingguan', 'Bulanan', 'Tahunan'].includes(values.frequency)) throw new Error('Frekuensi tidak valid.')
+    const scheduleChanged = !previous || recurringDueDate(previous) !== nextDate || (previous.frequency || 'Bulanan') !== values.frequency
+    return {
+      name: values.name.trim(), type: values.type, amount, frequency: values.frequency,
+      nextDate, anchorDate: scheduleChanged ? nextDate : previous.anchorDate || nextDate,
+      accountId: account.id, accountName: account.name,
+      categoryName: recurringCategory(values.type, values.categoryName),
+    }
+  }
+
   const addRecurring = async (values) => {
-    const record = { ...values, amount: Number(values.amount || 0), isActive: true }
+    const record = { ...recurringValues(values), isActive: true }
     if (user && !user.isDemo) await addUserRecord(user.uid, 'recurringTransactions', record)
     else setDemoData((current) => ({ ...current, recurringTransactions: [...current.recurringTransactions, { ...record, id: crypto.randomUUID() }] }))
     notify('Transaksi rutin berhasil dibuat')
+  }
+
+  const editRecurring = async (recurringId, values) => {
+    const previous = activeData.recurringTransactions.find((item) => item.id === recurringId)
+    if (!previous) throw new Error('Transaksi rutin tidak ditemukan.')
+    const record = recurringValues(values, previous)
+    if (user && !user.isDemo) await saveRecurringRecord(user.uid, recurringId, record)
+    else setDemoData((current) => ({ ...current, recurringTransactions: current.recurringTransactions.map((item) => item.id === recurringId ? { ...item, ...record } : item) }))
+    notify('Transaksi rutin berhasil diperbarui')
+  }
+
+  const removeRecurring = async (recurringId) => {
+    if (user && !user.isDemo) await deleteRecurringRecord(user.uid, recurringId)
+    else setDemoData((current) => ({ ...current, recurringTransactions: current.recurringTransactions.filter((item) => item.id !== recurringId) }))
+    notify('Jadwal rutin dihentikan')
+  }
+
+  const recordRecurringPayment = async (recurringId, expectedDueDate, accountId, amount) => {
+    const item = activeData.recurringTransactions.find((entry) => entry.id === recurringId)
+    if (!item || item.isActive === false) throw new Error('Jadwal rutin tidak ditemukan atau sudah berhenti.')
+    if (recurringDueDate(item) !== expectedDueDate) throw new Error('Jadwal telah berubah. Muat ulang halaman.')
+    if (user && !user.isDemo) await payRecurringRecord(user.uid, recurringId, expectedDueDate, accountId, Number(amount))
+    else {
+      const account = activeData.accounts.find((entry) => entry.id === accountId)
+      const payment = buildRecurringPayment(recurringId, item, account, amount)
+      const transaction = { ...payment.transaction, id: crypto.randomUUID() }
+      setDemoData((current) => ({
+        ...current,
+        recurringTransactions: current.recurringTransactions.map((entry) => entry.id === recurringId ? { ...entry, nextDate: payment.nextDate, lastPaidDate: transaction.date } : entry),
+        transactions: [transaction, ...current.transactions],
+        accounts: applyDemoBalanceChanges(current.accounts, balanceChanges(null, transaction)),
+      }))
+    }
+    notify(item.type === 'Pemasukan rutin' ? 'Pemasukan rutin berhasil dicatat' : 'Pembayaran berhasil dicatat')
   }
 
   const addGoal = async (values) => {
@@ -275,6 +329,7 @@ export function FinanceProvider({ children }) {
     error,
     isDemo,
     toast,
+    today,
     notify,
     addDemoTransaction,
     editTransaction,
@@ -285,6 +340,9 @@ export function FinanceProvider({ children }) {
     reconcileBalance,
     toggleAccountActive,
     addRecurring,
+    editRecurring,
+    removeRecurring,
+    recordRecurringPayment,
     addGoal,
     addDebtRecord,
     payBill,

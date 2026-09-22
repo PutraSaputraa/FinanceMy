@@ -1,6 +1,7 @@
 import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { budgetMonthKey } from '../utils/budgets'
+import { buildRecurringPayment, recurringDueDate } from '../utils/recurring'
 import { balanceChanges, transactionEffects } from '../utils/transactionBalances'
 
 export function subscribeCollection(userId, collectionName, callback, sortField, onError) {
@@ -33,6 +34,40 @@ export async function addBudget(userId, values) {
 
 export async function deleteBudget(userId, budgetId) {
   return deleteDoc(doc(db, 'users', userId, 'budgets', budgetId))
+}
+
+export async function updateRecurring(userId, recurringId, values) {
+  return updateDoc(doc(db, 'users', userId, 'recurringTransactions', recurringId), {
+    ...values,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteRecurring(userId, recurringId) {
+  return deleteDoc(doc(db, 'users', userId, 'recurringTransactions', recurringId))
+}
+
+export async function payRecurring(userId, recurringId, expectedDueDate, accountId, amount) {
+  const recurringRef = doc(db, 'users', userId, 'recurringTransactions', recurringId)
+  const accountRef = doc(db, 'users', userId, 'accounts', accountId)
+  const transactionRef = doc(db, 'users', userId, 'transactions', `recurring_${recurringId}_${expectedDueDate}`)
+  return runTransaction(db, async (transaction) => {
+    const recurringSnapshot = await transaction.get(recurringRef)
+    const accountSnapshot = await transaction.get(accountRef)
+    const existingPayment = await transaction.get(transactionRef)
+    if (!recurringSnapshot.exists() || recurringSnapshot.data().isActive === false) throw new Error('Jadwal rutin tidak ditemukan atau sudah berhenti.')
+    if (!accountSnapshot.exists()) throw new Error('Akun pembayaran tidak ditemukan.')
+    if (recurringDueDate(recurringSnapshot.data()) !== expectedDueDate || existingPayment.exists()) {
+      throw new Error('Periode ini sudah dibayar atau jadwalnya berubah. Muat ulang halaman.')
+    }
+    const account = { id: accountId, ...accountSnapshot.data() }
+    const payment = buildRecurringPayment(recurringId, recurringSnapshot.data(), account, amount)
+    const delta = payment.transaction.type === 'income' ? payment.transaction.amount : -payment.transaction.amount
+    transaction.update(accountRef, { currentBalance: Number(account.currentBalance) + delta, updatedAt: serverTimestamp() })
+    transaction.set(transactionRef, { ...payment.transaction, transactionDate: Timestamp.fromDate(payment.transaction.transactionDate), createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+    transaction.update(recurringRef, { nextDate: payment.nextDate, lastPaidDate: payment.transaction.date, updatedAt: serverTimestamp() })
+    return payment
+  })
 }
 
 export async function reconcileAccount(userId, accountId, actualBalance) {

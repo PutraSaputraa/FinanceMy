@@ -14,7 +14,7 @@ FinanceMy adalah aplikasi web pengelolaan keuangan pribadi berbasis React dan Fi
 - Form pemasukan, pengeluaran, dan transfer dengan validasi, serta edit dan hapus transaksi yang memperbarui saldo akun.
 - Akun/dompet dan rekonsiliasi saldo.
 - Budget per kategori untuk bulan kalender berjalan, dengan panduan harian tetap atau adaptif.
-- Transaksi rutin, konfirmasi tagihan, dan occurrence key anti-duplikasi.
+- Transaksi rutin dengan pengingat, pembayaran manual, dan pencegahan pencatatan ganda per periode.
 - Target keuangan, dana darurat, utang, piutang, dan cicilan.
 - Laporan grafik serta ringkasan kesehatan keuangan yang transparan.
 - Light/dark mode, penyamaran nominal, ekspor JSON/CSV, desktop dan mobile navigation.
@@ -68,6 +68,12 @@ Hasil build berada di folder `dist/`.
 ## Cara kerja budget
 
 Budget dibuat untuk kategori pengeluaran pada bulan berjalan. Nominal terpakai dihitung dari transaksi kategori yang sama pada bulan tersebut. Budget dapat dihapus tanpa menghapus transaksi. Saat bulan berganti, budget lama tidak lagi aktif; buat budget baru untuk bulan berikutnya. Sisa budget tidak otomatis dibawa ke bulan berikutnya. Mode **Tetap** membagi batas bulanan dengan jumlah hari dalam bulan, sedangkan **Adaptif** membagi sisa budget dengan jumlah hari yang tersisa.
+
+## Cara kerja transaksi rutin
+
+Transaksi rutin adalah jadwal dan pengingat, bukan pencatatan otomatis. Setiap jadwal memiliki jenis, nominal, frekuensi, tanggal jatuh tempo berikutnya, kategori, dan akun bawaan. Pengingat muncul pada H-7 sampai jatuh tempo dan tetap tampil bila terlambat; angka di sidebar menunjukkan jumlah jadwal yang perlu perhatian saat aplikasi dibuka. Pengguna dapat mengedit jadwal, termasuk nominal dan akun bawaan, tanpa mengubah transaksi yang sudah dicatat.
+
+Tombol **Bayar** (atau **Terima** untuk pemasukan rutin) meminta konfirmasi nominal dan akun. Setelah dikonfirmasi, aplikasi membuat transaksi biasa, memperbarui saldo dan budget kategori pengeluaran, lalu memajukan jatuh tempo satu periode. Perubahan ini dilakukan bersama dalam satu transaksi Firestore dengan identitas unik per periode untuk mencegah pencatatan ganda. Periode yang belum dibayar tidak dilewati otomatis. Tombol **Hapus** menghentikan jadwal serta pengingat berikutnya, tetapi riwayat transaksi tetap tersimpan. Pengingat di aplikasi bukan notifikasi push saat aplikasi tertutup.
 
 ## Admin dan provisioning pengguna
 

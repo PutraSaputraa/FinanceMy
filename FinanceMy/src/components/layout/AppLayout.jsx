@@ -7,6 +7,7 @@ import { useFinance } from '../../context/FinanceContext'
 import { calculateCashFlow } from '../../utils/calculations'
 import { getMonthInfo, getPeriodSummary } from '../../utils/analytics'
 import { formatCurrency } from '../../utils/formatters'
+import { recurringStatus } from '../../utils/recurring'
 import Toast from '../common/Toast'
 import brandLogo from '../../assets/financemy-logo-mark.png'
 
@@ -27,7 +28,7 @@ export default function AppLayout() {
   const [notificationOpen, setNotificationOpen] = useState(false)
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const { accounts, transactions, budgets, bills, toast } = useFinance()
+  const { accounts, transactions, budgets, bills, recurringTransactions, today, toast } = useFinance()
   const navigate = useNavigate()
   const location = useLocation()
   const active = navigation.find((item) => location.pathname.startsWith(item.path))
@@ -41,7 +42,9 @@ export default function AppLayout() {
   const forecast = calculateCashFlow({ balance: totalBalance, obligations, dailyAverage, days: month.daysRemaining })
   const safeDays = dailyAverage ? Math.max(Math.floor((totalBalance - obligations) / dailyAverage), 0) : month.daysRemaining
   const snapshotProgress = totalBalance ? Math.max(Math.min((forecast.projectedBalance / totalBalance) * 100, 100), 0) : 0
+  const recurringReminders = recurringTransactions.filter((item) => recurringStatus(item, today).needsReminder)
   const notificationItems = [
+    ...recurringReminders.map((item) => ({ tone: recurringStatus(item, today).tone, title: `${item.name || item.title} · ${recurringStatus(item, today).label}`, detail: `${formatCurrency(item.amount)} · buka Transaksi Rutin untuk mencatat` })),
     ...bills.filter((bill) => !['Sudah dibayar', 'Lunas', 'Dibatalkan'].includes(bill.status)).map((bill) => ({ tone: 'warning', title: `${bill.title || bill.name} belum dibayar`, detail: `${formatCurrency(bill.amount)} • ${bill.account || 'Akun belum dipilih'}` })),
     ...budgets.filter((budget) => budget.amount && (budget.spent / budget.amount) >= .8).map((budget) => ({ tone: (budget.spent / budget.amount) >= 1 ? 'danger' : 'warning', title: `Budget ${budget.name} terpakai ${Math.round((budget.spent / budget.amount) * 100)}%`, detail: `Tersisa ${formatCurrency(Math.max(budget.amount - budget.spent, 0))}` })),
     ...accounts.filter((account) => account.isActive !== false && Number(account.currentBalance || 0) < 100000).map((account) => ({ tone: 'danger', title: `Saldo ${account.name} rendah`, detail: `Saldo saat ini ${formatCurrency(account.currentBalance)}` })),
@@ -53,7 +56,7 @@ export default function AppLayout() {
       <div className="brand-row"><div className="brand-mark"><img src={brandLogo} alt="" aria-hidden="true"/></div><span>Finance<span>My</span></span><button className="drawer-close" onClick={() => setDrawer(false)} aria-label="Tutup menu"><X /></button></div>
       <nav className="side-nav" aria-label="Navigasi utama">
         <p className="nav-caption">MENU UTAMA</p>
-        {navigation.slice(0, 5).map(({ label, path, icon: Icon }) => <NavLink key={path} to={path} onClick={() => setDrawer(false)}><Icon size={19} /><span>{label}</span></NavLink>)}
+        {navigation.slice(0, 5).map(({ label, path, icon: Icon }) => <NavLink key={path} to={path} onClick={() => setDrawer(false)}><Icon size={19} /><span>{label}</span>{path === '/rutin' && recurringReminders.length > 0 && <span className="nav-badge" aria-label={`${recurringReminders.length} jadwal perlu perhatian`}>{recurringReminders.length}</span>}</NavLink>)}
         <p className="nav-caption">PERENCANAAN</p>
         {navigation.slice(5).map(({ label, path, icon: Icon }) => <NavLink key={path} to={path} onClick={() => setDrawer(false)}><Icon size={19} /><span>{label}</span></NavLink>)}
       </nav>
