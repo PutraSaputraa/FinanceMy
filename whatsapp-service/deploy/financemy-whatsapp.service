@@ -1,0 +1,20 @@
+[Unit]
+Description=FinanceMy WhatsApp receiver
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=financemy
+Group=financemy
+Environment=HOME=/home/financemy
+WorkingDirectory=/home/financemy/financemy-whatsapp
+ExecStart=/usr/bin/node /home/financemy/financemy-whatsapp/src/index.js
+Restart=on-failure
+RestartSec=10
+RestartPreventExitStatus=78
+TimeoutStopSec=20
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
