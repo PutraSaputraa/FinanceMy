@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export function createDelivery(inbox, directory, fetchMessage = fetch) {
+export function createDelivery(inbox, directory, fetchMessage = fetch, sendReply = async () => {}) {
   const endpoint = process.env.WA_INGEST_ENDPOINT
   const key = process.env.WA_CONNECTOR_KEY
   if (!endpoint) return { start() {}, flush: async () => {}, stop() {} }
@@ -47,6 +47,10 @@ export function createDelivery(inbox, directory, fetchMessage = fetch) {
           signal: AbortSignal.timeout(40000),
         })
         if (!result.ok && result.status !== 202) throw new Error(`HTTP ${result.status}`)
+        const outcome = typeof result.json === 'function' ? await result.json() : {}
+        if (typeof outcome?.reply === 'string' && outcome.reply) {
+          await sendReply(record.senderId, outcome.reply)
+        }
         markDelivered(record.id)
         console.log('Pesan WhatsApp terkirim untuk pemrosesan FinanceMy.')
       }

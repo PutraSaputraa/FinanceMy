@@ -15,7 +15,6 @@ const sessionPath = process.env.WA_SESSION_DIR
 fs.mkdirSync(sessionPath, { recursive: true, mode: 0o700 })
 fs.chmodSync(sessionPath, 0o700)
 const inbox = createInbox(sessionPath)
-const delivery = createDelivery(inbox, sessionPath)
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'financemy', dataPath: sessionPath }),
@@ -24,6 +23,7 @@ const client = new Client({
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   },
 })
+const delivery = createDelivery(inbox, sessionPath, fetch, (chatId, text) => client.sendMessage(chatId, text))
 
 let stopping = false
 const stop = async (code) => {

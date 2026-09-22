@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { adminDb, response as jsonResponse } from './_lib/firebase-admin.mjs'
+import { dismissDraft, DraftActionError, recordDraft } from './_lib/whatsapp-draft-actions.mjs'
+import { chatCommand, chatTransactionValues, draftConfirmation, simpleRevision } from './_lib/whatsapp-chat.mjs'
 import { matchesConnectorKey, validPhone, validSenderId } from './_lib/whatsapp-pairing.mjs'
 import { parseWhatsAppDraft } from './_lib/whatsapp-draft.mjs'
 
@@ -36,10 +38,13 @@ function jakartaDate() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 }
 
-async function parseWithKenari(text) {
+function jakartaTime() {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
+}
+
+async function kenariCompletion(messages) {
   const key = process.env.KENARI_API_KEY
   if (!key) throw new Error('KENARI_API_KEY belum dikonfigurasi')
-  const today = jakartaDate()
   const result = await fetch('https://kenari.id/v1/chat/completions', {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
@@ -48,10 +53,7 @@ async function parseWithKenari(text) {
       stream: false,
       temperature: 0,
       max_tokens: 300,
-      messages: [
-        { role: 'system', content: `Ubah satu pesan WhatsApp menjadi draf transaksi keuangan pribadi. Hari ini ${today} zona Asia/Jakarta. Balas hanya objek JSON. Jika pesan bukan catatan transaksi yang jelas, balas {"kind":"ignore"}. Jika transaksi, isi field kind="transaction", type="expense" atau "income", title=nama singkat, amount=nominal rupiah angka atau null, category=kategori, date=tanggal YYYY-MM-DD, accountHint=nama sumber dana jika disebut atau string kosong. Kategori expense: Makan & Minum, Transportasi, Belanja, Kebutuhan Rumah, Tagihan, Langganan, Hiburan, Pengeluaran Lainnya. Kategori income: Gaji, Freelance, Bonus, Refund, Pemasukan lainnya. Jangan mengarang nominal, tanggal, atau sumber dana. Jika nominal tidak jelas, tetap buat transaction dengan amount null agar pengguna mengisi. Transfer antar akun, pertanyaan, dan perintah bukan transaksi; balas ignore.` },
-        { role: 'user', content: text },
-      ],
+      messages,
     }),
     signal: AbortSignal.timeout(25000),
   })
@@ -59,7 +61,42 @@ async function parseWithKenari(text) {
   const data = await result.json()
   const content = data?.choices?.[0]?.message?.content
   if (typeof content !== 'string' || !content.trim()) throw new Error('Respons Kenari kosong')
+  return content
+}
+
+async function parseWithKenari(text) {
+  const today = jakartaDate()
+  const content = await kenariCompletion([
+    { role: 'system', content: `Ubah satu pesan WhatsApp menjadi draf transaksi keuangan pribadi. Hari ini ${today} zona Asia/Jakarta. Balas hanya objek JSON. Jika pesan bukan catatan transaksi yang jelas, balas {"kind":"ignore"}. Jika transaksi, isi field kind="transaction", type="expense" atau "income", title=nama singkat, amount=nominal rupiah angka atau null, category=kategori, date=tanggal YYYY-MM-DD, accountHint=nama sumber dana jika disebut atau string kosong, budgetHint=nama budget jika disebut atau string kosong. Kategori expense: Makan & Minum, Transportasi, Belanja, Kebutuhan Rumah, Tagihan, Langganan, Hiburan, Pengeluaran Lainnya. Kategori income: Gaji, Freelance, Bonus, Refund, Pemasukan lainnya. Jangan mengarang nominal, tanggal, sumber dana, atau budget. Jika nominal tidak jelas, tetap buat transaction dengan amount null agar pengguna mengisi. Transfer antar akun, pertanyaan, dan perintah bukan transaksi; balas ignore.` },
+    { role: 'user', content: text },
+  ])
   return parseWhatsAppDraft(content, today)
+}
+
+async function reviseWithKenari(parsed, revision) {
+  const content = await kenariCompletion([
+    { role: 'system', content: `Ubah draf transaksi berdasarkan revisi pengguna. Balas hanya objek JSON lengkap dengan kind="transaction", type, title, amount, category, date, accountHint, budgetHint. Pertahankan semua field lama yang tidak diminta berubah. Nominal harus angka rupiah. Jika pengguna berkata tanpa budget, budgetHint harus string kosong. Jangan mengarang informasi baru. Draf lama: ${JSON.stringify(parsed)}` },
+    { role: 'user', content: revision },
+  ])
+  const draft = parseWhatsAppDraft(content, parsed.date)
+  if (draft.status !== 'draft' || !draft.parsed.title) throw new Error('Revisi belum dapat dipahami')
+  return draft.parsed
+}
+
+async function choices(uid) {
+  const [accounts, budgets] = await Promise.all([
+    adminDb.collection(`users/${uid}/accounts`).get(),
+    adminDb.collection(`users/${uid}/budgets`).get(),
+  ])
+  return {
+    accounts: accounts.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+    budgets: budgets.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+  }
+}
+
+async function finish(ref, status, reply) {
+  await ref.update({ status, reply: reply || FieldValue.delete(), parsed: FieldValue.delete(), text: FieldValue.delete(), leaseUntil: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() })
+  return response(200, { status, ...(reply ? { reply } : {}) })
 }
 
 export default async (request) => {
@@ -76,32 +113,98 @@ export default async (request) => {
     const uid = await linkedUser(message.senderId, message.phone)
     if (!uid) return response(202, { status: 'unlinked' })
     const ref = adminDb.doc(`users/${uid}/whatsappMessages/${createHash('sha256').update(message.id).digest('hex')}`)
+    const activeRef = adminDb.doc(`waActiveDrafts/${uid}`)
+    const command = chatCommand(message.text)
     const now = Date.now()
     let state = 'processing'
+    let previousReply = null
+    let targetDraftId = null
     await adminDb.runTransaction(async (transaction) => {
       state = 'processing'
-      const snapshot = await transaction.get(ref)
+      previousReply = null
+      targetDraftId = null
+      const [snapshot, active] = await Promise.all([transaction.get(ref), transaction.get(activeRef)])
       const data = snapshot.data()
-      if (['draft', 'ignored', 'dismissed', 'recorded'].includes(data?.status)) {
+      if (['draft', 'ignored', 'dismissed', 'recorded', 'handled'].includes(data?.status)) {
         state = data.status
+        previousReply = data.reply || null
         return
       }
       if (data?.status === 'processing' && data.leaseUntil?.toMillis() > now) {
         state = 'busy'
         return
       }
+      targetDraftId = data?.targetDraftId || active.data()?.draftId || null
       const update = { status: 'processing', leaseUntil: Timestamp.fromMillis(now + 35_000), updatedAt: FieldValue.serverTimestamp() }
+      if (targetDraftId) update.targetDraftId = targetDraftId
       if (snapshot.exists) transaction.update(ref, update)
       else transaction.create(ref, { ...update, text: message.text, senderId: message.senderId, phone: message.phone, receivedAt: FieldValue.serverTimestamp(), source: 'whatsapp' })
     })
     if (state === 'busy') return response(503, { status: 'busy' })
-    if (state !== 'processing') return response(200, { status: state })
+    if (state !== 'processing') return response(200, { status: state, ...(previousReply ? { reply: previousReply } : {}) })
 
     try {
+      const draftRef = targetDraftId ? adminDb.doc(`users/${uid}/whatsappMessages/${targetDraftId}`) : null
+      const activeDraft = draftRef ? await draftRef.get() : null
+      const activeStatus = activeDraft?.data()?.status
+
+      if (command.kind !== 'other' && !targetDraftId) {
+        return finish(ref, 'handled', 'Belum ada draf aktif. Kirim catatan pengeluaran atau pemasukan terlebih dahulu.')
+      }
+      if (command.kind === 'submit' && activeStatus === 'recorded') {
+        return finish(ref, 'handled', 'Transaksi ini sudah tercatat di FinanceMy.')
+      }
+      if (command.kind === 'cancel' && activeStatus === 'dismissed') {
+        return finish(ref, 'handled', 'Draf sudah dibatalkan.')
+      }
+      if (command.kind !== 'other' && activeStatus !== 'draft') {
+        return finish(ref, 'handled', 'Draf ini sudah selesai. Kirim catatan baru untuk membuat draf berikutnya.')
+      }
+      if (command.kind === 'cancel') {
+        await dismissDraft(uid, targetDraftId)
+        return finish(ref, 'handled', 'Draf dibatalkan. Saldo tidak berubah.')
+      }
+      if (command.kind === 'submit') {
+        const { accounts, budgets } = await choices(uid)
+        const prepared = chatTransactionValues(activeDraft.data().parsed, accounts, budgets, jakartaTime())
+        if (prepared.error) return finish(ref, 'handled', prepared.error)
+        try {
+          await recordDraft(uid, targetDraftId, prepared.values)
+        } catch (error) {
+          if (error instanceof DraftActionError && error.status < 500) return finish(ref, 'handled', error.message)
+          throw error
+        }
+        return finish(ref, 'handled', `Transaksi ${activeDraft.data().parsed.title} sebesar Rp${new Intl.NumberFormat('id-ID').format(activeDraft.data().parsed.amount)} berhasil dicatat di FinanceMy.`)
+      }
+      if (command.kind === 'revise') {
+        if (!command.text) return finish(ref, 'handled', 'Tulis perubahannya setelah REVISI. Contoh: REVISI nominal 30000 atau REVISI akun BCA.')
+        const parsed = simpleRevision(activeDraft.data().parsed, command.text)
+          || await reviseWithKenari(activeDraft.data().parsed, command.text)
+        const { accounts, budgets } = await choices(uid)
+        const reply = draftConfirmation(parsed, accounts, budgets)
+        await adminDb.runTransaction(async (transaction) => {
+          const current = await transaction.get(draftRef)
+          if (current.data()?.status !== 'draft') throw new DraftActionError(409, 'Draf sudah selesai.')
+          transaction.update(draftRef, { parsed, reply, updatedAt: FieldValue.serverTimestamp() })
+        })
+        return finish(ref, 'handled', reply)
+      }
+      if (activeStatus === 'draft') {
+        return finish(ref, 'handled', 'Masih ada draf yang menunggu keputusan. Balas SUBMIT, REVISI diikuti perubahan, atau BATAL sebelum mengirim transaksi baru.')
+      }
+
       const draft = await parseWithKenari(message.text)
-      await ref.update({ status: draft.status, parsed: draft.parsed, text: draft.status === 'ignored' ? FieldValue.delete() : message.text, leaseUntil: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() })
-      return response(200, { status: draft.status })
+      if (draft.status === 'ignored') return finish(ref, 'ignored', null)
+      const { accounts, budgets } = await choices(uid)
+      const reply = draftConfirmation(draft.parsed, accounts, budgets)
+      await adminDb.runTransaction(async (transaction) => {
+        await transaction.get(activeRef)
+        transaction.update(ref, { status: 'draft', parsed: draft.parsed, reply, leaseUntil: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() })
+        transaction.set(activeRef, { draftId: ref.id, updatedAt: FieldValue.serverTimestamp() })
+      })
+      return response(200, { status: 'draft', reply })
     } catch (error) {
+      if (error instanceof DraftActionError && error.status < 500) return finish(ref, 'handled', error.message)
       console.error('Gagal memproses pesan WhatsApp:', error.message)
       await ref.update({ status: 'received', leaseUntil: FieldValue.delete(), updatedAt: FieldValue.serverTimestamp() })
       return response(503, { error: 'Pemrosesan AI belum tersedia. Pesan akan dicoba lagi.' })

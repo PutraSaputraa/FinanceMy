@@ -26,20 +26,23 @@ test('retries a failed delivery and does not resend after restart', async (t) =>
   let calls = 0
   const send = async () => {
     calls += 1
-    return { ok: calls > 1, status: calls > 1 ? 200 : 503 }
+    return { ok: calls > 1, status: calls > 1 ? 200 : 503, json: async () => ({ reply: 'Draf siap. Balas SUBMIT.' }) }
   }
-  let delivery = createDelivery(inbox, directory, send)
+  const replies = []
+  let delivery = createDelivery(inbox, directory, send, async (to, text) => { replies.push({ to, text }) })
   await delivery.flush()
   assert.equal(calls, 1)
   await delivery.flush()
   assert.equal(calls, 2)
+  assert.deepEqual(replies, [{ to: '123456789@lid', text: 'Draf siap. Balas SUBMIT.' }])
   delivery.stop()
   inbox.close()
 
   const reopenedInbox = createInbox(directory)
-  delivery = createDelivery(reopenedInbox, directory, send)
+  delivery = createDelivery(reopenedInbox, directory, send, async (to, text) => { replies.push({ to, text }) })
   await delivery.flush()
   assert.equal(calls, 2)
+  assert.equal(replies.length, 1)
   delivery.stop()
   reopenedInbox.close()
 })

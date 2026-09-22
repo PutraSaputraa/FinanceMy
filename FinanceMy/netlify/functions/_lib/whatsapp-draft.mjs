@@ -37,6 +37,7 @@ export function parseWhatsAppDraft(content, fallbackDate) {
       category,
       date: validDate(result?.date) ? result.date : fallbackDate,
       accountHint: typeof result?.accountHint === 'string' ? result.accountHint.trim().slice(0, 80) : '',
+      budgetHint: typeof result?.budgetHint === 'string' ? result.budgetHint.trim().slice(0, 80) : '',
     },
   }
 }

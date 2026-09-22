@@ -5,7 +5,7 @@ import { parseWhatsAppDraft } from '../netlify/functions/_lib/whatsapp-draft.mjs
 test('parses a financial message into a reviewable draft', () => {
   assert.deepEqual(parseWhatsAppDraft('{"kind":"transaction","type":"expense","title":"Makan siang","amount":25000,"category":"Makan & Minum","date":"2026-09-22","accountHint":"BCA"}', '2026-09-22'), {
     status: 'draft',
-    parsed: { type: 'expense', title: 'Makan siang', amount: 25000, category: 'Makan & Minum', date: '2026-09-22', accountHint: 'BCA' },
+    parsed: { type: 'expense', title: 'Makan siang', amount: 25000, category: 'Makan & Minum', date: '2026-09-22', accountHint: 'BCA', budgetHint: '' },
   })
 })
 
