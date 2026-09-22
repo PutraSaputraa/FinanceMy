@@ -104,9 +104,10 @@ async function createCode(uid) {
 async function disconnect(uid) {
   const connectionRef = adminDb.doc(`waConnections/${uid}`)
   const pendingRef = adminDb.doc(`waPendingByUser/${uid}`)
+  const activeDraftRef = adminDb.doc(`waActiveDrafts/${uid}`)
   await adminDb.runTransaction(async (transaction) => {
-    const [connection, pending] = await Promise.all([
-      transaction.get(connectionRef), transaction.get(pendingRef),
+    const [connection, pending, activeDraft] = await Promise.all([
+      transaction.get(connectionRef), transaction.get(pendingRef), transaction.get(activeDraftRef),
     ])
     if (connection.exists) {
       const { senderId, phone } = connection.data()
@@ -124,6 +125,7 @@ async function disconnect(uid) {
       if (pending.data().hash) transaction.delete(adminDb.doc(`waPairingCodes/${pending.data().hash}`))
       transaction.delete(pendingRef)
     }
+    if (activeDraft.exists) transaction.delete(activeDraftRef)
   })
   return response(200, { connected: false })
 }
