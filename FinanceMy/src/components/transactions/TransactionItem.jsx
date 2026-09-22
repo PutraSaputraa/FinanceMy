@@ -3,7 +3,7 @@ import { formatCurrency, formatDate } from '../../utils/formatters'
 
 const categoryIcons = { Gaji: Banknote, 'Makan & Minum': Coffee, Transportasi: Car, Tagihan: Wifi, 'Kebutuhan Rumah': ShoppingBag, Transfer: ArrowLeftRight }
 
-export default function TransactionItem({ transaction, onEdit, onDelete }) {
+export default function TransactionItem({ transaction, budgetName, onEdit, onDelete }) {
   const Icon = transaction.type === 'adjustment' ? Scale : categoryIcons[transaction.category] || House
   const prefix = transaction.type === 'adjustment'
     ? (transaction.adjustmentDelta >= 0 ? '+' : '−')
@@ -13,7 +13,7 @@ export default function TransactionItem({ transaction, onEdit, onDelete }) {
 
   return <div className="transaction-item">
     <div className={`transaction-icon ${transaction.type}`}><Icon size={19}/></div>
-    <div className="transaction-main"><strong>{transaction.title}</strong><span>{transaction.category} <i/> {transaction.account}{transaction.type === 'transfer' && transaction.destinationAccountName ? ` → ${transaction.destinationAccountName}` : transaction.type === 'transfer' && transaction.destinationAccount ? ` → ${transaction.destinationAccount}` : ''}</span></div>
+    <div className="transaction-main"><strong>{transaction.title}</strong><span>{transaction.category} <i/> {transaction.account}{transaction.type === 'transfer' && transaction.destinationAccountName ? ` → ${transaction.destinationAccountName}` : transaction.type === 'transfer' && transaction.destinationAccount ? ` → ${transaction.destinationAccount}` : ''}{budgetName && <> <i/> Budget: {budgetName}</>}</span></div>
     <div className="transaction-date">{formatDate(transaction.date, 'd MMM yyyy')}</div>
     <div className={`transaction-amount ${transaction.type}`}><strong>{prefix}{formatCurrency(transaction.amount)}</strong><span><DirectionIcon/>{label}</span></div>
     {(onEdit || onDelete) && <div className="transaction-actions">

@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import { recurringDueDate, recurringTransactionType } from '../../utils/recurring'
 
-export default function RecurringPaymentForm({ item, accounts, onPay, onDone }) {
+export default function RecurringPaymentForm({ item, accounts, budgets, onPay, onDone }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const submitting = useRef(false)
@@ -20,7 +20,7 @@ export default function RecurringPaymentForm({ item, accounts, onPay, onDone }) 
     setError('')
     try {
       const values = Object.fromEntries(new FormData(event.currentTarget))
-      await onPay(item.id, due, values.accountId, Number(values.amount))
+      await onPay(item.id, due, values.accountId, Number(values.amount), values.budgetId || null)
       onDone()
     } catch (payError) {
       setError(payError.message || 'Pencatatan gagal. Coba lagi.')
@@ -35,8 +35,9 @@ export default function RecurringPaymentForm({ item, accounts, onPay, onDone }) 
     <div className="form-grid">
       <label>Nominal (Rp)<input name="amount" type="number" min="1" step="1" required defaultValue={item.amount} /></label>
       <label>{income ? 'Akun penerima' : 'Sumber dana'}<select name="accountId" required defaultValue={selectedAccount?.id || availableAccounts[0]?.id || ''} disabled={!availableAccounts.length}>{availableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {formatCurrency(account.currentBalance)}</option>)}</select></label>
+      {!income && budgets.length > 0 && <label>Budget (opsional)<select name="budgetId" defaultValue=""><option value="">Tanpa budget</option>{budgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}</select></label>}
     </div>
-    <p className="form-note">{income ? 'Setelah dicatat, saldo akun bertambah.' : 'Setelah dibayar, saldo akun berkurang dan pengeluaran masuk ke Transaksi serta budget kategorinya.'} Jatuh tempo akan maju satu periode.</p>
+    <p className="form-note">{income ? 'Setelah dicatat, saldo akun bertambah.' : 'Setelah dibayar, saldo akun berkurang dan pengeluaran masuk ke Transaksi. Budget hanya berkurang jika dipilih.'} Jatuh tempo akan maju satu periode.</p>
     {!availableAccounts.length && <p className="form-feedback error">Tidak ada akun aktif untuk pencatatan ini.</p>}
     {error && <p className="form-feedback error" role="alert">{error}</p>}
     <div className="form-actions"><button type="button" className="secondary-btn" onClick={onDone} disabled={busy}>Batal</button><button className="primary-btn" disabled={busy || !availableAccounts.length}>{busy ? 'Mencatat...' : income ? 'Catat pemasukan' : 'Bayar sekarang'}</button></div>

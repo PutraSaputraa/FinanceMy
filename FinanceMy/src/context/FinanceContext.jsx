@@ -3,7 +3,7 @@ import { addDays, format } from 'date-fns'
 import { demoAccounts, demoBudgets, demoDebtRecords, demoGoals, demoTransactions, upcomingBills } from '../constants/demoData'
 import { useAuth } from './AuthContext'
 import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, deleteRecurring as deleteRecurringRecord, deleteTransaction, markBillPaid, payRecurring as payRecurringRecord, reconcileAccount, setAccountActive, subscribeCollection, updateRecurring as saveRecurringRecord, updateTransaction } from '../services/financeService'
-import { budgetMonthKey, monthlyBudgets } from '../utils/budgets'
+import { budgetMonthKey, budgetsForDate, monthlyBudgets } from '../utils/budgets'
 import { buildRecurringPayment, recurringCategory, recurringDateKey, recurringDueDate } from '../utils/recurring'
 import { balanceChanges } from '../utils/transactionBalances'
 
@@ -41,7 +41,16 @@ function initialDemoData() {
   }
 }
 
-function transactionValues(values, accounts) {
+function selectedBudgetId(type, budgetId, budgets, date) {
+  if (type !== 'expense' && type !== 'refund') return null
+  if (!budgetId) return null
+  if (!budgetsForDate(budgets, date).some((budget) => budget.id === budgetId)) {
+    throw new Error('Budget tidak tersedia untuk bulan transaksi ini. Pilih budget lain atau Tanpa budget.')
+  }
+  return budgetId
+}
+
+function transactionValues(values, accounts, budgets) {
   const source = accounts.find((account) => account.id === values.accountId || account.name === values.account)
   const destination = values.type === 'transfer'
     ? accounts.find((account) => account.id === values.destinationAccountId || account.name === values.destinationAccount)
@@ -55,8 +64,9 @@ function transactionValues(values, accounts) {
   if (!Number.isFinite(adminFee) || adminFee < 0) throw new Error('Biaya admin tidak valid.')
   const transactionDate = new Date(`${values.date}T${values.time || '12:00'}`)
   if (Number.isNaN(transactionDate.getTime())) throw new Error('Tanggal transaksi tidak valid.')
+  const budgetId = selectedBudgetId(values.type, values.budgetId, budgets, transactionDate)
   return {
-    ...values, amount, adminFee, accountId: source.id, accountName: source.name, account: source.name,
+    ...values, amount, adminFee, budgetId, accountId: source.id, accountName: source.name, account: source.name,
     destinationAccountId: destination?.id || null,
     destinationAccountName: destination?.name || null,
     destinationAccount: destination?.name || null,
@@ -134,7 +144,7 @@ export function FinanceProvider({ children }) {
   }
 
   const addDemoTransaction = async (values) => {
-    const record = transactionValues(values, activeData.accounts)
+    const record = transactionValues(values, activeData.accounts, activeData.budgets)
     if (user && !user.isDemo) {
       await createTransaction(user.uid, {
         ...record,
@@ -156,7 +166,7 @@ export function FinanceProvider({ children }) {
     const previous = activeData.transactions.find((item) => item.id === transactionId)
     if (!previous) throw new Error('Transaksi tidak ditemukan.')
     if (previous.type === 'adjustment') throw new Error('Penyesuaian saldo hanya dapat dihapus.')
-    const record = transactionValues(values, activeData.accounts)
+    const record = transactionValues(values, activeData.accounts, activeData.budgets)
     if (user && !user.isDemo) await updateTransaction(user.uid, transactionId, record)
     else {
       const next = { ...previous, ...record }
@@ -192,8 +202,16 @@ export function FinanceProvider({ children }) {
   }
 
   const addDemoBudget = async (values) => {
-    if (user && !user.isDemo) await addBudget(user.uid, values)
-    else setDemoData((current) => ({ ...current, budgets: [...current.budgets, { ...values, id: crypto.randomUUID(), amount: Number(values.amount), periodKey: budgetMonthKey() }] }))
+    const name = values.name?.trim()
+    const amount = Number(values.amount)
+    if (!name || name.length > 120) throw new Error('Nama budget harus berisi 1–120 karakter.')
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('Nominal budget harus lebih dari nol.')
+    if (budgetsForDate(activeData.budgets, today).some((budget) => budget.name.toLocaleLowerCase('id-ID') === name.toLocaleLowerCase('id-ID'))) {
+      throw new Error('Nama budget ini sudah dipakai bulan ini.')
+    }
+    const record = { ...values, name, amount, trackingMode: 'manual' }
+    if (user && !user.isDemo) await addBudget(user.uid, record)
+    else setDemoData((current) => ({ ...current, budgets: [...current.budgets, { ...record, id: crypto.randomUUID(), periodKey: budgetMonthKey() }] }))
     notify('Budget berhasil dibuat')
   }
 
@@ -279,14 +297,15 @@ export function FinanceProvider({ children }) {
     notify('Jadwal rutin dihentikan')
   }
 
-  const recordRecurringPayment = async (recurringId, expectedDueDate, accountId, amount) => {
+  const recordRecurringPayment = async (recurringId, expectedDueDate, accountId, amount, budgetId) => {
     const item = activeData.recurringTransactions.find((entry) => entry.id === recurringId)
     if (!item || item.isActive === false) throw new Error('Jadwal rutin tidak ditemukan atau sudah berhenti.')
     if (recurringDueDate(item) !== expectedDueDate) throw new Error('Jadwal telah berubah. Muat ulang halaman.')
-    if (user && !user.isDemo) await payRecurringRecord(user.uid, recurringId, expectedDueDate, accountId, Number(amount))
+    const chosenBudgetId = selectedBudgetId(item.type === 'Pemasukan rutin' ? 'income' : 'expense', budgetId, activeData.budgets, new Date())
+    if (user && !user.isDemo) await payRecurringRecord(user.uid, recurringId, expectedDueDate, accountId, Number(amount), chosenBudgetId)
     else {
       const account = activeData.accounts.find((entry) => entry.id === accountId)
-      const payment = buildRecurringPayment(recurringId, item, account, amount)
+      const payment = buildRecurringPayment(recurringId, item, account, amount, new Date(), chosenBudgetId)
       const transaction = { ...payment.transaction, id: crypto.randomUUID() }
       setDemoData((current) => ({
         ...current,
@@ -325,6 +344,7 @@ export function FinanceProvider({ children }) {
   const value = {
     ...activeData,
     budgets: monthlyBudgets(activeData.budgets, activeData.transactions, today),
+    budgetRecords: activeData.budgets,
     loading,
     error,
     isDemo,

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { format } from 'date-fns'
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from 'lucide-react'
 import { useFinance } from '../../context/FinanceContext'
+import { budgetIdForTransaction, budgetsForDate } from '../../utils/budgets'
 
 const incomeCategories = ['Gaji', 'Freelance', 'Bonus', 'Refund', 'Pemasukan lainnya']
 const expenseCategories = ['Makan & Minum', 'Transportasi', 'Belanja', 'Kebutuhan Rumah', 'Tagihan', 'Langganan', 'Hiburan', 'Pengeluaran Lainnya']
@@ -10,11 +11,13 @@ const expenseCategories = ['Makan & Minum', 'Transportasi', 'Belanja', 'Kebutuha
 export default function TransactionForm({ onDone, transaction }) {
   const [type, setType] = useState(transaction?.type || 'expense')
   const [submitError, setSubmitError] = useState('')
-  const { accounts, addDemoTransaction, editTransaction } = useFinance()
+  const { accounts, budgetRecords, addDemoTransaction, editTransaction } = useFinance()
   const transactionTime = transaction?.transactionDate?.toDate?.() || (transaction?.transactionDate instanceof Date ? transaction.transactionDate : null)
   const sourceId = transaction?.accountId || accounts.find((account) => account.name === transaction?.account)?.id
   const destinationId = transaction?.destinationAccountId || accounts.find((account) => account.name === transaction?.destinationAccount)?.id
   const availableAccounts = accounts.filter((account) => account.isActive !== false || account.id === sourceId || account.id === destinationId)
+  const initialDate = transaction?.date || format(new Date(), 'yyyy-MM-dd')
+  const initialBudgets = budgetsForDate(budgetRecords, new Date(`${initialDate}T12:00`))
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
       title: transaction?.title || '',
@@ -22,7 +25,8 @@ export default function TransactionForm({ onDone, transaction }) {
       accountId: sourceId || availableAccounts[0]?.id || '',
       destinationAccountId: destinationId || '',
       category: transaction?.category || transaction?.categoryName || expenseCategories[0],
-      date: transaction?.date || format(new Date(), 'yyyy-MM-dd'),
+      budgetId: transaction ? budgetIdForTransaction(transaction, initialBudgets) || '' : '',
+      date: initialDate,
       time: transaction?.time || (transactionTime ? format(transactionTime, 'HH:mm') : format(new Date(), 'HH:mm')),
       needType: transaction?.needType || 'kebutuhan',
       adminFee: transaction?.adminFee || 0,
@@ -30,6 +34,12 @@ export default function TransactionForm({ onDone, transaction }) {
     },
   })
   const source = watch('accountId')
+  const transactionDate = watch('date')
+  const chosenBudgetId = watch('budgetId')
+  const availableBudgets = budgetsForDate(budgetRecords, new Date(`${transactionDate}T12:00`))
+  useEffect(() => {
+    if (chosenBudgetId && !availableBudgets.some((budget) => budget.id === chosenBudgetId)) setValue('budgetId', '')
+  }, [availableBudgets, chosenBudgetId, setValue])
   const categories = type === 'income' ? incomeCategories : expenseCategories
   const categoryOptions = transaction?.category && !categories.includes(transaction.category)
     ? [transaction.category, ...categories]
@@ -37,6 +47,7 @@ export default function TransactionForm({ onDone, transaction }) {
   const changeType = (nextType) => {
     setType(nextType)
     if (nextType !== 'transfer') setValue('category', nextType === 'income' ? incomeCategories[0] : expenseCategories[0])
+    if (nextType !== 'expense' && nextType !== 'refund') setValue('budgetId', '')
   }
 
   const submit = async (values) => {
@@ -67,6 +78,7 @@ export default function TransactionForm({ onDone, transaction }) {
       <label>{type === 'income' || type === 'refund' ? 'Akun tujuan' : 'Akun pembayaran'}<select {...register('accountId', { required: 'Pilih akun.' })}>{availableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.isActive === false ? ' (nonaktif)' : ''}</option>)}</select>{errors.accountId && <small className="field-error">{errors.accountId.message}</small>}</label>
       {type === 'transfer' && <label>Akun tujuan<select {...register('destinationAccountId', { validate: (value) => Boolean(value) && value !== source || 'Pilih akun tujuan yang berbeda.' })}><option value="">Pilih akun</option>{availableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.isActive === false ? ' (nonaktif)' : ''}</option>)}</select>{errors.destinationAccountId && <small className="field-error">{errors.destinationAccountId.message}</small>}</label>}
       {type !== 'transfer' && <label>Kategori<select {...register('category', { required: 'Pilih kategori.' })}>{categoryOptions.map((item) => <option key={item}>{item}</option>)}</select>{errors.category && <small className="field-error">{errors.category.message}</small>}</label>}
+      {(type === 'expense' || type === 'refund') && availableBudgets.length > 0 && <label>Budget (opsional)<select {...register('budgetId')}><option value="">Tanpa budget</option>{availableBudgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}</select></label>}
       <label>Tanggal<input type="date" {...register('date', { required: 'Tanggal wajib diisi.' })}/>{errors.date && <small className="field-error">{errors.date.message}</small>}</label><label>Waktu<input type="time" {...register('time', { required: 'Waktu wajib diisi.' })}/>{errors.time && <small className="field-error">{errors.time.message}</small>}</label>
       {type === 'expense' && <label>Label<select {...register('needType')}><option value="wajib">Wajib</option><option value="kebutuhan">Kebutuhan</option><option value="keinginan">Keinginan</option><option value="tidak-terduga">Tidak terduga</option></select></label>}
       {type === 'transfer' && <label>Biaya admin<input type="number" min="0" {...register('adminFee', { min: { value: 0, message: 'Biaya admin tidak valid.' } })}/>{errors.adminFee && <small className="field-error">{errors.adminFee.message}</small>}</label>}

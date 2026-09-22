@@ -62,7 +62,7 @@ export function recurringCategory(type, category) {
   return 'Tagihan'
 }
 
-export function buildRecurringPayment(id, item, account, amount, paidAt = new Date()) {
+export function buildRecurringPayment(id, item, account, amount, paidAt = new Date(), budgetId = null) {
   const due = recurringDueDate(item)
   const paid = recurringDateKey(paidAt)
   const value = Number(amount)
@@ -83,6 +83,7 @@ export function buildRecurringPayment(id, item, account, amount, paidAt = new Da
       account: account.name,
       categoryName: category,
       category,
+      budgetId: type === 'expense' ? budgetId || null : null,
       recurringId: id,
       occurrenceKey: `${id}_${due}`,
       scheduledDate: due,

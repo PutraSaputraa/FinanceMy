@@ -1,6 +1,6 @@
 import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { budgetMonthKey } from '../utils/budgets'
+import { budgetMonthKey, budgetPeriodKey } from '../utils/budgets'
 import { buildRecurringPayment, recurringDueDate } from '../utils/recurring'
 import { balanceChanges, transactionEffects } from '../utils/transactionBalances'
 
@@ -27,7 +27,7 @@ export async function setAccountActive(userId, accountId, isActive) {
 
 export async function addBudget(userId, values) {
   return addDoc(collection(db, 'users', userId, 'budgets'), {
-    ...values, amount: Number(values.amount), periodKey: budgetMonthKey(), warningThreshold: 80, isActive: true,
+    ...values, amount: Number(values.amount), periodKey: budgetMonthKey(), trackingMode: 'manual', warningThreshold: 80, isActive: true,
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
   })
 }
@@ -47,21 +47,28 @@ export async function deleteRecurring(userId, recurringId) {
   return deleteDoc(doc(db, 'users', userId, 'recurringTransactions', recurringId))
 }
 
-export async function payRecurring(userId, recurringId, expectedDueDate, accountId, amount) {
+export async function payRecurring(userId, recurringId, expectedDueDate, accountId, amount, budgetId = null) {
   const recurringRef = doc(db, 'users', userId, 'recurringTransactions', recurringId)
   const accountRef = doc(db, 'users', userId, 'accounts', accountId)
+  const budgetRef = budgetId ? doc(db, 'users', userId, 'budgets', budgetId) : null
   const transactionRef = doc(db, 'users', userId, 'transactions', `recurring_${recurringId}_${expectedDueDate}`)
+  const paidAt = new Date()
   return runTransaction(db, async (transaction) => {
     const recurringSnapshot = await transaction.get(recurringRef)
     const accountSnapshot = await transaction.get(accountRef)
     const existingPayment = await transaction.get(transactionRef)
+    const budgetSnapshot = budgetRef ? await transaction.get(budgetRef) : null
     if (!recurringSnapshot.exists() || recurringSnapshot.data().isActive === false) throw new Error('Jadwal rutin tidak ditemukan atau sudah berhenti.')
     if (!accountSnapshot.exists()) throw new Error('Akun pembayaran tidak ditemukan.')
     if (recurringDueDate(recurringSnapshot.data()) !== expectedDueDate || existingPayment.exists()) {
       throw new Error('Periode ini sudah dibayar atau jadwalnya berubah. Muat ulang halaman.')
     }
+    if (budgetRef && (!budgetSnapshot.exists() || budgetSnapshot.data().isActive === false || budgetPeriodKey(budgetSnapshot.data(), paidAt) !== budgetMonthKey(paidAt))) {
+      throw new Error('Budget tidak tersedia untuk bulan pembayaran ini.')
+    }
     const account = { id: accountId, ...accountSnapshot.data() }
-    const payment = buildRecurringPayment(recurringId, recurringSnapshot.data(), account, amount)
+    const payment = buildRecurringPayment(recurringId, recurringSnapshot.data(), account, amount, paidAt, budgetId)
+    if (payment.transaction.type !== 'expense' && budgetId) throw new Error('Pemasukan rutin tidak menggunakan budget.')
     const delta = payment.transaction.type === 'income' ? payment.transaction.amount : -payment.transaction.amount
     transaction.update(accountRef, { currentBalance: Number(account.currentBalance) + delta, updatedAt: serverTimestamp() })
     transaction.set(transactionRef, { ...payment.transaction, transactionDate: Timestamp.fromDate(payment.transaction.transactionDate), createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
@@ -123,6 +130,7 @@ export async function createTransaction(userId, values) {
   const sourceRef = doc(db, 'users', userId, 'accounts', values.accountId)
   const destinationRef = values.destinationAccountId
     ? doc(db, 'users', userId, 'accounts', values.destinationAccountId) : null
+  const budgetRef = values.budgetId ? doc(db, 'users', userId, 'budgets', values.budgetId) : null
   const amount = Number(values.amount)
   const adminFee = Number(values.adminFee || 0)
 
@@ -132,6 +140,10 @@ export async function createTransaction(userId, values) {
     const source = sourceSnapshot.data()
     let destinationSnapshot
     if (destinationRef) destinationSnapshot = await transaction.get(destinationRef)
+    const budgetSnapshot = budgetRef ? await transaction.get(budgetRef) : null
+    if (budgetRef && (!budgetSnapshot.exists() || budgetSnapshot.data().isActive === false || budgetPeriodKey(budgetSnapshot.data(), values.transactionDate) !== budgetMonthKey(values.transactionDate))) {
+      throw new Error('Budget tidak tersedia untuk bulan transaksi ini.')
+    }
     let delta = values.type === 'income' || values.type === 'refund' ? amount : -amount
     if (values.type === 'transfer') delta = -(amount + adminFee)
     if (!source.allowNegative && source.currentBalance + delta < 0) throw new Error('Saldo akun tidak mencukupi.')
@@ -165,6 +177,12 @@ async function changeTransaction(userId, transactionId, values) {
       transactionDate: Timestamp.fromDate(values.transactionDate),
       updatedAt: serverTimestamp(),
     } : null
+    if (next?.budgetId) {
+      const budgetSnapshot = await transaction.get(doc(db, 'users', userId, 'budgets', next.budgetId))
+      if (!budgetSnapshot.exists() || budgetSnapshot.data().isActive === false || budgetPeriodKey(budgetSnapshot.data(), values.transactionDate) !== budgetMonthKey(values.transactionDate)) {
+        throw new Error('Budget tidak tersedia untuk bulan transaksi ini.')
+      }
+    }
     const changes = balanceChanges(previous, next)
     const nextAccountIds = new Set(transactionEffects(next).map((effect) => effect.accountId))
     const accounts = []
@@ -199,5 +217,5 @@ export async function markBillPaid(userId, billId, accountId) {
   const bill = await getDoc(billRef)
   if (!bill.exists()) throw new Error('Tagihan tidak ditemukan.')
   const occurrenceKey = `${billId}_${bill.data().dueDate.toDate().toISOString().slice(0, 7)}`
-  return createTransaction(userId, { type: 'expense', title: bill.data().name, amount: bill.data().amount, accountId, accountName: bill.data().accountName || 'Akun', categoryId: bill.data().categoryId || null, categoryName: bill.data().categoryName || 'Tagihan', billId, occurrenceKey, transactionDate: new Date() })
+  return createTransaction(userId, { type: 'expense', title: bill.data().name, amount: bill.data().amount, accountId, accountName: bill.data().accountName || 'Akun', categoryId: bill.data().categoryId || null, categoryName: bill.data().categoryName || 'Tagihan', budgetId: null, billId, occurrenceKey, transactionDate: new Date() })
 }

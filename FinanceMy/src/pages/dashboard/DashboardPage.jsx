@@ -47,7 +47,7 @@ export default function DashboardPage() {
   const obligations = bills
     .filter((bill) => !['Sudah dibayar', 'Lunas', 'Dibatalkan'].includes(bill.status))
     .reduce((sum, bill) => sum + Number(bill.amount || 0), 0)
-  const adaptive = dailyBudgetSummary(budgets, month)
+  const adaptive = dailyBudgetSummary(budgets, month, transactions, now)
   const forecast = calculateCashFlow({ balance: totalBalance, obligations, dailyAverage, days: month.daysRemaining })
   const amount = (value) => hiddenAmounts ? 'Rp ••••••••' : formatCurrency(value)
   const expensePercentage = totalBudget ? Math.round((budgetSpent / totalBudget) * 100) : 0
@@ -75,7 +75,7 @@ export default function DashboardPage() {
         <div className="section-head"><div><h2>Panduan hari ini</h2><p>Dari budget yang aktif</p></div><span className={`status-pill ${dailyRemaining < 0 ? 'danger' : 'success'}`}>{totalBudget ? dailyRemaining < 0 ? 'Terlewati' : 'Aman' : 'Belum diatur'}</span></div>
         <div className="daily-ring"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="43"/><circle className="value" cx="50" cy="50" r="43" style={{strokeDashoffset: `${270-(270*dailyRatio)}`}}/></svg><div><small>Tersisa</small><strong>{formatCurrency(dailyRemaining)}</strong><span>dari {formatCurrency(adaptive.availableToday)}</span></div></div>
         <div className="daily-stats"><span>Target tetap<strong>{formatCurrency(adaptive.fixedDaily)}</strong></span><span>Terpakai hari ini<strong>{formatCurrency(todayExpense)}</strong></span></div>
-        <p className="daily-hint"><Sparkles/>{totalBudget ? <>Pengeluaran kategori yang dibudgetkan; <strong>{month.daysRemaining} hari</strong> tersisa bulan ini.</> : <>Buat budget agar panduan harian dapat dihitung.</>}</p>
+        <p className="daily-hint"><Sparkles/>{totalBudget ? <>Pengeluaran yang masuk budget; <strong>{month.daysRemaining} hari</strong> tersisa bulan ini.</> : <>Buat budget agar panduan harian dapat dihitung.</>}</p>
       </article>
     </section>
 

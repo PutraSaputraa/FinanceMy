@@ -23,7 +23,7 @@ export default function RecurringPage() {
   const [deleting, setDeleting] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-  const { accounts, recurringTransactions, today, addRecurring, editRecurring, removeRecurring, recordRecurringPayment } = useFinance()
+  const { accounts, budgets, recurringTransactions, today, addRecurring, editRecurring, removeRecurring, recordRecurringPayment } = useFinance()
   const activeItems = recurringTransactions.filter((item) => item.isActive !== false)
   const filtered = activeItems
     .filter((item) => tab === 'rutin' || tab === 'kalender' || (item.type || '').toLowerCase() === tab)
@@ -73,7 +73,7 @@ export default function RecurringPage() {
       {editing && <RecurringForm key={editing === 'new' ? 'new' : editing.id} item={editing === 'new' ? null : editing} accounts={accounts} onSave={(values) => editing === 'new' ? addRecurring(values) : editRecurring(editing.id, values)} onDone={() => setEditing(null)}/>}
     </Modal>
     <Modal open={!!paying} onClose={() => setPaying(null)} title={`${paying?.type === 'Pemasukan rutin' ? 'Catat pemasukan' : 'Bayar'} ${paying?.name || paying?.title || ''}`} description="Periksa nominal dan akun sebelum mencatat.">
-      {paying && <RecurringPaymentForm key={`${paying.id}_${recurringDueDate(paying)}`} item={paying} accounts={accounts} onPay={recordRecurringPayment} onDone={() => setPaying(null)}/>}
+      {paying && <RecurringPaymentForm key={`${paying.id}_${recurringDueDate(paying)}`} item={paying} accounts={accounts} budgets={budgets} onPay={recordRecurringPayment} onDone={() => setPaying(null)}/>}
     </Modal>
     <Modal open={!!deleting} onClose={() => !deleteBusy && setDeleting(null)} title={`Hapus ${deleting?.name || deleting?.title || 'jadwal'}?`} description="Pengingat berikutnya akan dihentikan.">
       <div className="confirm-account-action"><p>Jadwal ini akan dihapus. Transaksi yang sudah dibayar tetap tersimpan di riwayat.</p>{deleteError && <p className="form-feedback error" role="alert">{deleteError}</p>}<div className="form-actions"><button className="secondary-btn" onClick={() => setDeleting(null)} disabled={deleteBusy}>Batal</button><button className="danger-btn" onClick={confirmDelete} disabled={deleteBusy}>{deleteBusy ? 'Menghapus...' : 'Hapus jadwal'}</button></div></div>
