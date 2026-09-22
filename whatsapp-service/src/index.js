@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import qrcode from 'qrcode-terminal'
 import whatsapp from 'whatsapp-web.js'
+import { createDelivery } from './delivery.js'
 import { createInbox } from './inbox.js'
 import { getMessageId, resolveSenderPhone } from './message-identity.js'
 import { claimPairingCode, pairingCodeFromMessage } from './pairing.js'
@@ -14,6 +15,7 @@ const sessionPath = process.env.WA_SESSION_DIR
 fs.mkdirSync(sessionPath, { recursive: true, mode: 0o700 })
 fs.chmodSync(sessionPath, 0o700)
 const inbox = createInbox(sessionPath)
+const delivery = createDelivery(inbox, sessionPath)
 
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: 'financemy', dataPath: sessionPath }),
@@ -32,6 +34,7 @@ const stop = async (code) => {
   } catch (error) {
     console.error('Gagal menutup sesi WhatsApp:', error)
   } finally {
+    delivery.stop()
     inbox.close()
     process.exit(code)
   }
@@ -51,7 +54,10 @@ client.on('qr', (qr) => {
 })
 
 client.on('authenticated', () => console.log('WhatsApp terautentikasi. Menunggu sesi siap...'))
-client.on('ready', () => console.log(`WhatsApp siap menerima pesan. Antrean tersimpan: ${inbox.count}.`))
+client.on('ready', () => {
+  console.log(`WhatsApp siap menerima pesan. Antrean tersimpan: ${inbox.count}.`)
+  delivery.start()
+})
 client.on('auth_failure', (message) => {
   console.error('Autentikasi WhatsApp gagal:', message)
   void stop(78)
@@ -109,6 +115,7 @@ client.on('message', async (message) => {
   try {
     if (inbox.append(record)) {
       console.log(`Pesan tersimpan: jenis=${record.type}, nomorDitemukan=${Boolean(phone)}, waktu=${receivedAt}`)
+      void delivery.flush()
     }
   } catch (error) {
     console.error('Gagal menyimpan pesan masuk:', error)

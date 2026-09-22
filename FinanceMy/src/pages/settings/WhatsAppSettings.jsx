@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, Copy, Link2, MessageCircle, Unplug } from 'lucide-react'
 import { createWhatsAppPairingCode, disconnectWhatsApp, getWhatsAppConnection } from '../../services/whatsappLinkService'
+import WhatsAppDrafts from './WhatsAppDrafts'
 
 export default function WhatsAppSettings({ user }) {
   const [connection, setConnection] = useState(null)
@@ -83,5 +84,6 @@ export default function WhatsAppSettings({ user }) {
           </>}
           <p className="wa-link-note">Menghubungkan chat belum membuat transaksi otomatis. Pesan keuangan akan diproses setelah fitur pencatatan WhatsApp selesai.</p>
         </div>}
+    <WhatsAppDrafts user={user}/>
   </>
 }
