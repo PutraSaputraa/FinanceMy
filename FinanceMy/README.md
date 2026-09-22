@@ -93,6 +93,14 @@ FIREBASE_ADMIN_PRIVATE_KEY
 
 `FIREBASE_ADMIN_PRIVATE_KEY` boleh disimpan dengan karakter `\n`; function akan mengubahnya menjadi newline. Sebagai alternatif, tiga variabel `FIREBASE_ADMIN_*` dapat diganti dengan satu `FIREBASE_SERVICE_ACCOUNT_JSON` yang berisi JSON service account lengkap. Jangan pernah memasukkan nilai rahasia tersebut ke source code atau `.env.example`.
 
+### Menghubungkan WhatsApp pengguna
+
+Pengguna yang login membuka **Pengaturan > WhatsApp**, membuat kode pasangan, lalu mengirim kode itu sebagai satu pesan dari chat miliknya ke nomor WhatsApp Business FinanceMy. Kode berlaku 10 menit dan hanya dapat dipakai sekali. Backend menghubungkan ID chat dan nomor yang berhasil ditemukan ke satu UID; chat atau nomor yang sudah terhubung ke akun lain akan ditolak. Pengguna dapat memutuskan sambungan dari halaman yang sama.
+
+Fungsi `whatsapp-link` membutuhkan variabel Netlify `WA_CONNECTOR_KEY` dengan nilai acak yang sama dengan variabel di `/etc/financemy-whatsapp.env` pada VPS. Simpan sebagai environment variable Netlify yang tersedia untuk **Functions**, tanpa awalan `VITE_`. Jangan masukkan kunci ke Git, URL, atau browser. Endpoint yang dipakai VPS adalah `https://myfinancemy.netlify.app/.netlify/functions/whatsapp-link`. Setelah mengubah variabel, lakukan deploy ulang Netlify dan restart `financemy-whatsapp.service`.
+
+Dokumen `waPairingCodes`, `waPendingByUser`, `waConnections`, `waSenderLinks`, dan `waPhoneLinks` hanya diakses melalui Netlify Function dengan Firebase Admin SDK. Pesan keuangan belum dikirim ke Firestore atau diproses AI pada tahap ini; konektor masih menyimpannya dalam antrean lokal VPS.
+
 Saat membuat pengguna, admin mengisi email, username, dan password awal. Akun langsung aktif sehingga pengguna dapat login tanpa membuka email untuk mengatur password. Password dikirim langsung ke Firebase Authentication dan tidak pernah disimpan di Firestore. Fitur lupa/reset password melalui email tetap tersedia bila pengguna membutuhkannya.
 
 ### Membuat admin pertama

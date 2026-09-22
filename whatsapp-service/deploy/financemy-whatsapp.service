@@ -8,6 +8,7 @@ Type=simple
 User=financemy
 Group=financemy
 Environment=HOME=/home/financemy
+EnvironmentFile=-/etc/financemy-whatsapp.env
 WorkingDirectory=/home/financemy/financemy-whatsapp
 ExecStart=/usr/bin/node /home/financemy/financemy-whatsapp/src/index.js
 Restart=on-failure

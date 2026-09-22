@@ -31,3 +31,16 @@ journalctl -u financemy-whatsapp.service -n 30 --no-pager
 ```
 
 Layanan berjalan sebagai `financemy` dan memakai sesi QR yang sama. Jika sesi kedaluwarsa, layanan berhenti dan perlu dipindai ulang secara interaktif. Folder sesi dan antrean berisi data sensitif; jangan unggah atau bagikan isinya.
+
+## Menghubungkan chat ke akun
+
+Pengguna login ke FinanceMy, buka **Pengaturan > WhatsApp**, buat kode sekali pakai, lalu kirim kode itu sebagai satu pesan dari chat miliknya ke nomor WhatsApp Business FinanceMy. Pesan kode tidak disimpan sebagai transaksi. Kode berlaku 10 menit dan hanya dapat digunakan sekali. Satu chat dan satu nomor hanya dapat terhubung ke satu akun.
+
+Konektor perlu dua variabel di `/etc/financemy-whatsapp.env` (izin `0600`, pemilik `root`):
+
+```ini
+WA_PAIRING_ENDPOINT=https://myfinancemy.netlify.app/.netlify/functions/whatsapp-link
+WA_CONNECTOR_KEY=<kunci-acak-yang-sama-dengan-Netlify>
+```
+
+Atur `WA_CONNECTOR_KEY` yang sama pada environment Netlify untuk **Functions**, bukan di `netlify.toml` atau kode frontend. Setelah mengubah environment, deploy ulang fungsi Netlify dan restart layanan VPS. Jangan bagikan nilai kunci di chat atau commit ke Git.

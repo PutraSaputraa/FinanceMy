@@ -5,6 +5,7 @@ import qrcode from 'qrcode-terminal'
 import whatsapp from 'whatsapp-web.js'
 import { createInbox } from './inbox.js'
 import { getMessageId, resolveSenderPhone } from './message-identity.js'
+import { claimPairingCode, pairingCodeFromMessage } from './pairing.js'
 
 const { Client, LocalAuth } = whatsapp
 const sessionPath = process.env.WA_SESSION_DIR
@@ -63,6 +64,19 @@ client.on('disconnected', (reason) => {
 
 client.on('message', async (message) => {
   if (message.fromMe || !message.from || message.from.endsWith('@g.us') || message.from.endsWith('@broadcast')) return
+
+  const pairingCode = pairingCodeFromMessage(message)
+  if (pairingCode) {
+    let phone = null
+    try {
+      phone = await resolveSenderPhone(client, message.from)
+      await claimPairingCode({ code: pairingCode, senderId: message.from, phone })
+      console.log('Chat WhatsApp berhasil dihubungkan ke akun FinanceMy.')
+    } catch (error) {
+      console.error('Gagal menghubungkan chat WhatsApp:', error.message)
+    }
+    return
+  }
 
   const id = getMessageId(message)
   if (!id) {
