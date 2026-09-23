@@ -1,6 +1,7 @@
 import { parseWhatsAppDraft } from './whatsapp-draft.mjs'
 
 const rupiah = new Intl.NumberFormat('id-ID')
+const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
 const allowedTopics = new Set([
   'overview', 'accounts', 'budgets', 'debts', 'receivables', 'installments',
   'recurring', 'goals', 'transactions',
@@ -85,8 +86,24 @@ function monthBounds(today) {
   return { start: `${year}-${String(month).padStart(2, '0')}-01`, end: `${year}-${String(month).padStart(2, '0')}-${last}` }
 }
 
+function displayDate(value) {
+  const key = dateKey(value)
+  if (!key) return String(value || 'belum diatur')
+  const [year, month, day] = key.split('-').map(Number)
+  return `${day} ${monthNames[month - 1]} ${year}`
+}
+
+function monthLabel(value) {
+  const key = dateKey(value) || `${value}-01`
+  const [year, month] = key.split('-').map(Number)
+  return `${monthNames[month - 1]} ${year}`
+}
+
 function periodLabel(start, end) {
-  return start === end ? start : `${start} s.d. ${end}`
+  if (start === end) return displayDate(start)
+  const bounds = monthBounds(start)
+  if (start === bounds.start && end === bounds.end) return monthLabel(start)
+  return `${displayDate(start)} – ${displayDate(end)}`
 }
 
 function itemDate(item) {
@@ -122,9 +139,9 @@ function searched(items, query, fields) {
   return items.filter((item) => fields.some((field) => normalized(field(item)).includes(needle)))
 }
 
-function limitedLines(items, render, limit = 12) {
+function limitedBlocks(items, render, limit = 5) {
   const visible = items.slice(0, limit).map(render)
-  if (items.length > limit) visible.push(`• dan ${items.length - limit} data lainnya`)
+  if (items.length > limit) visible.push(`_+${items.length - limit} data lainnya. Buka FinanceMy untuk melihat semua._`)
   return visible
 }
 
@@ -152,20 +169,25 @@ function accountsAnswer(data, plan) {
   items = searched(items, plan.search || plan.account, [(item) => item.name, (item) => item.type])
   if (!items.length) return 'Belum ada akun aktif yang cocok.'
   const total = items.reduce((sum, item) => sum + number(item.currentBalance), 0)
-  return [`*Saldo akun*`, ...limitedLines(items, (item) => `• ${item.name}: ${money(item.currentBalance)}`), `Total: *${money(total)}*`].join('\n')
+  return [
+    '💰 *SALDO AKUN*',
+    ...limitedBlocks(items, (item) => `• *${item.name}*\n  ${money(item.currentBalance)}`),
+    `*Total saldo*\n${money(total)}`,
+  ].join('\n\n')
 }
 
 function budgetsAnswer(data, plan, today) {
   let items = currentBudgets(data, today)
   items = searched(items, plan.search, [(item) => item.name])
-  if (!items.length) return `Belum ada budget ${plan.search ? `yang cocok dengan “${plan.search}” ` : ''}untuk ${today.slice(0, 7)}.`
+  if (!items.length) return `Belum ada budget ${plan.search ? `yang cocok dengan “${plan.search}” ` : ''}untuk ${monthLabel(today)}.`
   const amount = items.reduce((sum, item) => sum + number(item.amount), 0)
   const spent = items.reduce((sum, item) => sum + item.spent, 0)
-  const lines = limitedLines(items, (item) => {
-    const suffix = item.remaining < 0 ? ` (terlampaui ${money(-item.remaining)})` : ''
-    return `• ${item.name}: sisa *${money(item.remaining)}* dari ${money(item.amount)}${suffix}`
+  const blocks = limitedBlocks(items, (item) => {
+    const used = number(item.amount) ? Math.round(item.spent / number(item.amount) * 100) : 0
+    const status = item.remaining < 0 ? `Terlampaui ${money(-item.remaining)}` : `Sisa *${money(item.remaining)}*`
+    return `• *${item.name}*\n  ${status} dari ${money(item.amount)}\n  Terpakai ${money(item.spent)} (${used}%)`
   })
-  return [`*Budget ${today.slice(0, 7)}*`, ...lines, `Total terpakai ${money(spent)} dari ${money(amount)}. Sisa *${money(amount - spent)}*.`].join('\n')
+  return [`🎯 *BUDGET ${monthLabel(today).toLocaleUpperCase('id-ID')}*`, ...blocks, `*Total budget*\nTerpakai ${money(spent)} • Sisa *${money(amount - spent)}*`].join('\n\n')
 }
 
 function obligationAnswer(title, items, plan) {
@@ -175,10 +197,10 @@ function obligationAnswer(title, items, plan) {
   const remaining = records.reduce((sum, item) => sum + number(item.remaining), 0)
   const monthly = records.reduce((sum, item) => sum + number(item.monthly), 0)
   return [
-    `*${title}*`,
-    ...limitedLines(records, (item) => `• ${item.name}: sisa ${money(item.remaining)}${number(item.monthly) ? `, ${money(item.monthly)}/bulan` : ''}${item.due ? `, jatuh tempo ${dateKey(item.due) || item.due}` : ''}`),
-    `Total sisa: *${money(remaining)}*${monthly ? `\nKewajiban per bulan: *${money(monthly)}*` : ''}`,
-  ].join('\n')
+    `🤝 *${title.toLocaleUpperCase('id-ID')}*`,
+    ...limitedBlocks(records, (item) => `• *${item.name}*\n  Sisa *${money(item.remaining)}*${number(item.monthly) ? ` • ${money(item.monthly)}/bulan` : ''}${item.due ? `\n  Jatuh tempo ${dateKey(item.due) ? displayDate(item.due) : item.due}` : ''}`),
+    `*Total sisa*\n${money(remaining)}${monthly ? `\nKewajiban bulanan ${money(monthly)}` : ''}`,
+  ].join('\n\n')
 }
 
 function recurringAnswer(data, plan) {
@@ -188,10 +210,10 @@ function recurringAnswer(data, plan) {
   items.sort((a, b) => String(dateKey(a.nextDate || a.date || a.dueDate) || '9999').localeCompare(String(dateKey(b.nextDate || b.date || b.dueDate) || '9999')))
   const expense = items.filter((item) => item.type !== 'Pemasukan rutin').reduce((sum, item) => sum + number(item.amount), 0)
   return [
-    '*Transaksi rutin aktif*',
-    ...limitedLines(items, (item) => `• ${item.name || item.title}: ${money(item.amount)} · ${item.frequency || 'Bulanan'} · berikutnya ${dateKey(item.nextDate || item.date || item.dueDate) || 'belum diatur'} · ${item.accountName || item.account || 'akun belum dipilih'}`),
-    `Total nominal rutin pengeluaran: *${money(expense)}* per siklus masing-masing.`,
-  ].join('\n')
+    '🔁 *TRANSAKSI RUTIN*',
+    ...limitedBlocks(items, (item) => `• *${item.name || item.title}*\n  ${money(item.amount)} • ${item.frequency || 'Bulanan'}\n  Berikutnya ${dateKey(item.nextDate || item.date || item.dueDate) ? displayDate(item.nextDate || item.date || item.dueDate) : 'belum diatur'} • ${item.accountName || item.account || 'akun belum dipilih'}`),
+    `*Total rutin pengeluaran*\n${money(expense)} per siklus masing-masing`,
+  ].join('\n\n')
 }
 
 function goalsAnswer(data, plan) {
@@ -201,14 +223,14 @@ function goalsAnswer(data, plan) {
   const saved = items.reduce((sum, item) => sum + number(item.saved), 0)
   const target = items.reduce((sum, item) => sum + number(item.target), 0)
   return [
-    '*Target keuangan*',
-    ...limitedLines(items, (item) => {
+    '🏁 *TARGET KEUANGAN*',
+    ...limitedBlocks(items, (item) => {
       const targetValue = number(item.target)
       const progress = targetValue ? Math.min(Math.round(number(item.saved) / targetValue * 100), 100) : 0
-      return `• ${item.name}: ${money(item.saved)} dari ${money(targetValue)} (${progress}%)${item.deadline ? ` · target ${dateKey(item.deadline) || item.deadline}` : ''}`
+      return `• *${item.name}* • ${progress}%\n  ${money(item.saved)} dari ${money(targetValue)}${item.deadline ? `\n  Target ${dateKey(item.deadline) ? displayDate(item.deadline) : item.deadline}` : ''}`
     }),
-    `Total terkumpul: *${money(saved)}* dari ${money(target)}.`,
-  ].join('\n')
+    `*Total terkumpul*\n${money(saved)} dari ${money(target)}`,
+  ].join('\n\n')
 }
 
 function transactionMatches(item, plan, start, end) {
@@ -233,12 +255,13 @@ function transactionsAnswer(data, plan, today) {
   if (!items.length) return `Tidak ada transaksi yang cocok pada ${periodLabel(start, end)}.`
   if (plan.mode === 'list') {
     return [
-      `*Transaksi ${periodLabel(start, end)}*`,
-      ...limitedLines(items, (item) => {
+      '🧾 *DAFTAR TRANSAKSI*',
+      `_${periodLabel(start, end)}_`,
+      ...limitedBlocks(items, (item) => {
         const sign = item.type === 'income' || item.type === 'refund' ? '+' : '-'
-        return `• ${itemDate(item)} · ${item.title || 'Transaksi'} · ${sign}${money(item.amount)} · ${transactionAccount(item)}`
-      }, 10),
-    ].join('\n')
+        return `• *${item.title || 'Transaksi'}*  ${sign}${money(item.amount)}\n  ${displayDate(itemDate(item))} • ${transactionAccount(item)}`
+      }),
+    ].join('\n\n')
   }
   const income = items.reduce((sum, item) => sum + incomeValue(item), 0)
   const expense = items.reduce((sum, item) => sum + expenseValue(item), 0)
@@ -253,7 +276,12 @@ function transactionsAnswer(data, plan, today) {
     : plan.transactionType === 'expense'
       ? `Total pengeluaran: *${money(expense)}*`
       : `Pemasukan: *${money(income)}*\nPengeluaran: *${money(expense)}*\nSelisih: *${money(income - expense)}*`
-  return [`*Ringkasan ${periodLabel(start, end)}*`, `${items.length} transaksi`, typeLine, ...(top.length ? ['Kategori pengeluaran terbesar:', ...top.map(([name, value]) => `• ${name}: ${money(value)}`)] : [])].join('\n')
+  return [
+    '🧾 *RINGKASAN TRANSAKSI*',
+    `_${periodLabel(start, end)} • ${items.length} transaksi_`,
+    typeLine,
+    ...(top.length ? [`*Kategori pengeluaran terbesar*\n${top.map(([name, value]) => `• ${name}: ${money(value)}`).join('\n')}`] : []),
+  ].join('\n\n')
 }
 
 function overviewAnswer(data, today) {
@@ -274,15 +302,13 @@ function overviewAnswer(data, today) {
   const exceeded = budgets.filter((item) => item.remaining < 0)
   if (exceeded.length) notes.push(`${exceeded.length} budget sudah terlampaui: ${exceeded.map((item) => item.name).join(', ')}.`)
   return [
-    `*Ringkasan keuangan ${today.slice(0, 7)}*`,
-    `Saldo aktif: *${money(balance)}*`,
-    `Pemasukan: ${money(income)}`,
-    `Pengeluaran: ${money(expense)}`,
-    `Arus kas: *${money(income - expense)}*`,
-    budgets.length ? `Sisa budget: *${money(budgetAmount - budgetSpent)}*` : 'Budget: belum dibuat bulan ini',
-    `Sisa utang & cicilan: *${money(obligations)}*`,
-    ...(notes.length ? ['', '*Catatan*', ...notes.map((note) => `• ${note}`)] : []),
-  ].join('\n')
+    `📊 *RINGKASAN ${monthLabel(today).toLocaleUpperCase('id-ID')}*`,
+    `*Saldo aktif*\n${money(balance)}`,
+    `*Arus kas bulan ini*\nPemasukan  ${money(income)}\nPengeluaran  ${money(expense)}\nSelisih  *${money(income - expense)}*`,
+    budgets.length ? `*Budget*\nSisa *${money(budgetAmount - budgetSpent)}*` : '*Budget*\nBelum dibuat bulan ini',
+    `*Utang & cicilan*\nSisa ${money(obligations)}`,
+    ...(notes.length ? [`*Perlu diperhatikan*\n${notes.map((note) => `• ${note}`).join('\n')}`] : []),
+  ].join('\n\n')
 }
 
 export function answerFinanceQuery(plan, data, today) {
@@ -297,7 +323,9 @@ export function answerFinanceQuery(plan, data, today) {
     if (topic === 'goals') return goalsAnswer(data, plan)
     return transactionsAnswer(data, plan, today)
   })
-  const result = answers.join('\n\n').slice(0, 3900)
-  return `${result}\n\nData dibaca dari FinanceMy pada ${today}.`
+  const combined = answers.join('\n\n──────────\n\n')
+  const shortened = combined.length > 3650
+    ? `${combined.slice(0, 3650).replace(/\n[^\n]*$/, '')}\n\n_Buka FinanceMy untuk melihat data lainnya._`
+    : combined
+  return `${shortened}\n\n_Data FinanceMy • ${displayDate(today)}_`
 }
-

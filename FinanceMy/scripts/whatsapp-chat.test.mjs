@@ -13,7 +13,7 @@ test('recognizes chat approval, revision, and cancellation commands', () => {
 })
 
 test('never submits when account is ambiguous or amount is missing', () => {
-  assert.match(chatTransactionValues({ ...parsed, accountHint: '' }, accounts, [], '12:00').error, /Akun/)
+  assert.match(chatTransactionValues({ ...parsed, accountHint: '' }, accounts, [], '12:00').error, /AKUN/)
   assert.match(chatTransactionValues({ ...parsed, amount: null }, accounts, [], '12:00').error, /nominal/)
 })
 
@@ -23,6 +23,8 @@ test('matches a unique account and formats the confirmation', () => {
   assert.equal(result.values.amount, 25000)
   assert.match(draftConfirmation(parsed, accounts, []), /Bank BCA/)
   assert.match(draftConfirmation(parsed, accounts, []), /SUBMIT/)
+  assert.match(draftConfirmation(parsed, accounts, []), /22 September 2026/)
+  assert.match(draftConfirmation(parsed, accounts, []), /\n\n/)
 })
 
 test('revises common fields without changing the rest of the draft', () => {

@@ -63,21 +63,23 @@ test('parses transaction, finance query, and unsupported intents', () => {
 
 test('calculates account balances and manually assigned budget spending', () => {
   const accounts = answerFinanceQuery(plan(['accounts']), data, today)
-  assert.match(accounts, /Total: \*Rp2\.750\.000\*/)
+  assert.match(accounts, /💰 \*SALDO AKUN\*/)
+  assert.match(accounts, /\*Total saldo\*\nRp2\.750\.000/)
   assert.doesNotMatch(accounts, /Lama/)
 
   const budgets = answerFinanceQuery(plan(['budgets']), data, today)
-  assert.match(budgets, /Jajan: sisa \*Rp850\.000\*/)
-  assert.match(budgets, /Transport: sisa \*Rp400\.000\*/)
-  assert.match(budgets, /Total terpakai Rp150\.000/)
+  assert.match(budgets, /🎯 \*BUDGET SEPTEMBER 2026\*/)
+  assert.match(budgets, /\*Jajan\*\n  Sisa \*Rp850\.000\*/)
+  assert.match(budgets, /\*Transport\*\n  Sisa \*Rp400\.000\*/)
+  assert.match(budgets, /Terpakai Rp150\.000 • Sisa/)
 })
 
 test('answers obligations, recurring transactions, and goals from stored values', () => {
-  assert.match(answerFinanceQuery(plan(['debts']), data, today), /Pinjaman keluarga: sisa Rp1\.500\.000/)
-  assert.match(answerFinanceQuery(plan(['receivables']), data, today), /Dimas: sisa Rp800\.000/)
-  assert.match(answerFinanceQuery(plan(['installments']), data, today), /Laptop: sisa Rp6\.000\.000/)
-  assert.match(answerFinanceQuery(plan(['recurring']), data, today), /Internet: Rp350\.000/)
-  assert.match(answerFinanceQuery(plan(['goals']), data, today), /Dana darurat: Rp4\.000\.000 dari Rp10\.000\.000 \(40%\)/)
+  assert.match(answerFinanceQuery(plan(['debts']), data, today), /\*Pinjaman keluarga\*\n  Sisa \*Rp1\.500\.000\*/)
+  assert.match(answerFinanceQuery(plan(['receivables']), data, today), /\*Dimas\*\n  Sisa \*Rp800\.000\*/)
+  assert.match(answerFinanceQuery(plan(['installments']), data, today), /\*Laptop\*\n  Sisa \*Rp6\.000\.000\*/)
+  assert.match(answerFinanceQuery(plan(['recurring']), data, today), /\*Internet\*\n  Rp350\.000 • Bulanan/)
+  assert.match(answerFinanceQuery(plan(['goals']), data, today), /\*Dana darurat\* • 40%\n  Rp4\.000\.000 dari Rp10\.000\.000/)
 })
 
 test('summarizes and lists filtered transactions for the requested period', () => {
@@ -97,9 +99,11 @@ test('summarizes and lists filtered transactions for the requested period', () =
 
 test('provides an overview using current month figures', () => {
   const answer = answerFinanceQuery(plan(['overview']), data, today)
-  assert.match(answer, /Saldo aktif: \*Rp2\.750\.000\*/)
-  assert.match(answer, /Pemasukan: Rp3\.000\.000/)
-  assert.match(answer, /Pengeluaran: Rp225\.000/)
-  assert.match(answer, /Sisa utang & cicilan: \*Rp7\.500\.000\*/)
+  assert.match(answer, /📊 \*RINGKASAN SEPTEMBER 2026\*/)
+  assert.match(answer, /\*Saldo aktif\*\nRp2\.750\.000/)
+  assert.match(answer, /Pemasukan  Rp3\.000\.000/)
+  assert.match(answer, /Pengeluaran  Rp225\.000/)
+  assert.match(answer, /\*Utang & cicilan\*\nSisa Rp7\.500\.000/)
+  assert.match(answer, /_Data FinanceMy • 23 September 2026_$/)
+  assert.ok(answer.length < 3900)
 })
-

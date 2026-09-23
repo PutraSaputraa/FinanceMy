@@ -180,20 +180,20 @@ export default async (request) => {
       const activeStatus = activeDraft?.data()?.status
 
       if (command.kind !== 'other' && !targetDraftId) {
-        return finish(ref, 'handled', 'Belum ada draf aktif. Kirim catatan pengeluaran atau pemasukan terlebih dahulu.')
+        return finish(ref, 'handled', 'ℹ️ *BELUM ADA DRAF*\n\nKirim catatan pengeluaran atau pemasukan terlebih dahulu.')
       }
       if (command.kind === 'submit' && activeStatus === 'recorded') {
-        return finish(ref, 'handled', 'Transaksi ini sudah tercatat di FinanceMy.')
+        return finish(ref, 'handled', '✅ *SUDAH TERCATAT*\n\nTransaksi ini sebelumnya sudah masuk ke FinanceMy.')
       }
       if (command.kind === 'cancel' && activeStatus === 'dismissed') {
-        return finish(ref, 'handled', 'Draf sudah dibatalkan.')
+        return finish(ref, 'handled', '✅ *DRAF SUDAH DIBATALKAN*')
       }
       if (command.kind !== 'other' && activeStatus !== 'draft') {
-        return finish(ref, 'handled', 'Draf ini sudah selesai. Kirim catatan baru untuk membuat draf berikutnya.')
+        return finish(ref, 'handled', 'ℹ️ *DRAF SUDAH SELESAI*\n\nKirim catatan baru untuk membuat draf berikutnya.')
       }
       if (command.kind === 'cancel') {
         await dismissDraft(uid, targetDraftId)
-        return finish(ref, 'handled', 'Draf dibatalkan. Saldo tidak berubah.')
+        return finish(ref, 'handled', '✅ *DRAF DIBATALKAN*\n\nSaldo FinanceMy tidak berubah.')
       }
       if (command.kind === 'submit') {
         const { accounts, budgets } = await choices(uid)
@@ -205,10 +205,10 @@ export default async (request) => {
           if (error instanceof DraftActionError && error.status < 500) return finish(ref, 'handled', error.message)
           throw error
         }
-        return finish(ref, 'handled', `Transaksi ${activeDraft.data().parsed.title} sebesar Rp${new Intl.NumberFormat('id-ID').format(activeDraft.data().parsed.amount)} berhasil dicatat di FinanceMy.`)
+        return finish(ref, 'handled', `✅ *TRANSAKSI TERCATAT*\n\n*${activeDraft.data().parsed.title}*\nRp${new Intl.NumberFormat('id-ID').format(activeDraft.data().parsed.amount)}\n\nSaldo FinanceMy sudah diperbarui.`)
       }
       if (command.kind === 'revise') {
-        if (!command.text) return finish(ref, 'handled', 'Tulis perubahannya setelah REVISI. Contoh: REVISI nominal 30000 atau REVISI akun BCA.')
+        if (!command.text) return finish(ref, 'handled', '✏️ *TULIS PERUBAHANNYA*\n\nContoh:\n• REVISI nominal 30000\n• REVISI akun BCA\n• REVISI budget Jajan')
         const parsed = simpleRevision(activeDraft.data().parsed, command.text)
           || await reviseWithKenari(activeDraft.data().parsed, command.text)
         const { accounts, budgets } = await choices(uid)
@@ -227,11 +227,11 @@ export default async (request) => {
         return finish(ref, 'handled', answerFinanceQuery(intent.plan, data, jakartaDate()))
       }
       if (intent.kind === 'unsupported') {
-        const draftReminder = activeStatus === 'draft' ? ' Draf transaksimu masih tersimpan; balas SUBMIT, REVISI, atau BATAL untuk melanjutkan.' : ''
-        return finish(ref, 'handled', `Aku dapat membantu mencatat transaksi dan menjawab data FinanceMy seperti saldo, budget, utang, piutang, cicilan, transaksi rutin, riwayat transaksi, dan target keuangan.${draftReminder}`)
+        const draftReminder = activeStatus === 'draft' ? '\n\n_Draf transaksimu masih tersimpan. Balas SUBMIT, REVISI, atau BATAL untuk melanjutkan._' : ''
+        return finish(ref, 'handled', `💬 *PENDAMPING FINANCEMY*\n\nAku dapat membantu:\n• Mencatat transaksi\n• Memeriksa saldo dan budget\n• Melihat utang, piutang, dan cicilan\n• Melihat transaksi rutin\n• Merangkum transaksi dan target${draftReminder}`)
       }
       if (activeStatus === 'draft') {
-        return finish(ref, 'handled', 'Masih ada draf yang menunggu keputusan. Balas SUBMIT, REVISI diikuti perubahan, atau BATAL sebelum mengirim transaksi baru.')
+        return finish(ref, 'handled', '⏳ *DRAF MENUNGGU KEPUTUSAN*\n\nBalas:\n• *SUBMIT* untuk mencatat\n• *REVISI* diikuti perubahan\n• *BATAL* untuk membatalkan')
       }
 
       const draft = intent.draft

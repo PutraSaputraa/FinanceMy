@@ -1,6 +1,13 @@
 import { expenseCategories, incomeCategories } from './whatsapp-draft.mjs'
 
 const rupiah = new Intl.NumberFormat('id-ID')
+const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+
+function displayDate(value) {
+  if (typeof value !== 'string' || !/^(\d{4})-(\d{2})-(\d{2})$/.test(value)) return value || 'belum jelas'
+  const [, year, month, day] = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  return `${Number(day)} ${monthNames[Number(month) - 1]} ${year}`
+}
 
 export function chatCommand(text) {
   const value = typeof text === 'string' ? text.trim() : ''
@@ -68,25 +75,25 @@ export function draftConfirmation(parsed, accounts, budgets) {
   const type = parsed?.type === 'income' ? 'Pemasukan' : 'Pengeluaran'
   const accountLabel = account?.name || `belum dipilih${parsed?.accountHint ? ` (tertulis: ${parsed.accountHint})` : ''}`
   const budgetLabel = parsed?.budgetHint ? budget?.name || `tidak ditemukan (${parsed.budgetHint})` : 'tanpa budget'
-  const accountHelp = !account && activeAccounts.length ? `\nPilihan akun: ${activeAccounts.slice(0, 8).map((item) => item.name).join(', ')}.` : ''
-  return `Draf FinanceMy\nJenis: ${type}\nNama: ${parsed?.title || 'belum jelas'}\nNominal: ${amount}\nAkun: ${accountLabel}\nKategori: ${parsed?.category || 'belum jelas'}\nBudget: ${budgetLabel}\nTanggal: ${parsed?.date || 'belum jelas'}${accountHelp}\n\nBalas SUBMIT untuk mencatat, REVISI diikuti perubahan (contoh: REVISI akun BCA), atau BATAL. Saldo baru berubah setelah SUBMIT.`
+  const accountHelp = !account && activeAccounts.length ? `\n\n*Pilihan akun*\n${activeAccounts.slice(0, 6).map((item) => `• ${item.name}`).join('\n')}` : ''
+  return `🧾 *DRAF TRANSAKSI*\n\n*${parsed?.title || 'Nama belum jelas'}*\n${type} • ${amount}\n\nAkun: *${accountLabel}*\nKategori: ${parsed?.category || 'belum jelas'}\nBudget: ${budgetLabel}\nTanggal: ${displayDate(parsed?.date)}${accountHelp}\n\nBalas:\n• *SUBMIT* untuk mencatat\n• *REVISI akun BCA* untuk mengubah\n• *BATAL* untuk membatalkan\n\n_Saldo baru berubah setelah SUBMIT._`
 }
 
 export function chatTransactionValues(parsed, accounts, budgets, time) {
   if (!['expense', 'income'].includes(parsed?.type) || !parsed.title || !Number.isSafeInteger(parsed.amount) || parsed.amount <= 0) {
-    return { error: 'Nama atau nominal belum jelas. Balas REVISI diikuti koreksinya.' }
+    return { error: '⚠️ *DATA BELUM LENGKAP*\n\nNama atau nominal transaksi belum jelas.\n\nContoh: *REVISI nominal 30000*' }
   }
   if (typeof parsed.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(parsed.date)) {
-    return { error: 'Tanggal belum jelas. Balas REVISI tanggal, misalnya REVISI tanggal 2026-09-22.' }
+    return { error: '⚠️ *TANGGAL BELUM JELAS*\n\nContoh: *REVISI tanggal 2026-09-22*' }
   }
   const { account, budget, activeAccounts } = resolveDraftChoices(parsed, accounts, budgets)
   if (!account) {
-    const list = activeAccounts.length ? ` Pilihan: ${activeAccounts.slice(0, 8).map((item) => item.name).join(', ')}.` : ' Tambahkan akun di web FinanceMy dahulu.'
-    return { error: `Akun sumber dana belum cocok. Balas REVISI akun <nama>.${list}` }
+    const list = activeAccounts.length ? `\n\n*Pilihan akun*\n${activeAccounts.slice(0, 6).map((item) => `• ${item.name}`).join('\n')}` : '\n\nTambahkan akun melalui web FinanceMy terlebih dahulu.'
+    return { error: `⚠️ *AKUN BELUM COCOK*\n\nBalas *REVISI akun <nama>*${list}` }
   }
-  if (parsed.budgetHint && !budget) return { error: 'Budget yang disebut belum cocok. Balas REVISI budget <nama>, atau REVISI tanpa budget.' }
+  if (parsed.budgetHint && !budget) return { error: '⚠️ *BUDGET BELUM COCOK*\n\nBalas salah satu:\n• *REVISI budget <nama>*\n• *REVISI tanpa budget*' }
   const transactionDate = new Date(`${parsed.date}T${time}:00+07:00`)
-  if (Number.isNaN(transactionDate.getTime())) return { error: 'Tanggal transaksi tidak valid. Balas REVISI tanggal.' }
+  if (Number.isNaN(transactionDate.getTime())) return { error: '⚠️ *TANGGAL TIDAK VALID*\n\nBalas *REVISI tanggal YYYY-MM-DD*' }
   return {
     values: {
       type: parsed.type,
