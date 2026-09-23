@@ -17,6 +17,15 @@ export const getMessageId = (message) => {
   return `${id.fromMe}_${remote}_${id.id}`
 }
 
+export const restoreSerializedMessageId = (message) => {
+  const serialized = getMessageId(message)
+  if (!serialized || !message?.id || typeof message.id !== 'object') return null
+  if (typeof message.id._serialized !== 'string' || !message.id._serialized) {
+    message.id._serialized = serialized
+  }
+  return serialized
+}
+
 export const resolveSenderPhone = async (client, senderId) => {
   const directPhone = phoneFromJid(senderId)
   if (directPhone) return directPhone

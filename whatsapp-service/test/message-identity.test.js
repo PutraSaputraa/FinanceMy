@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { getMessageId, resolveSenderPhone } from '../src/message-identity.js'
+import { getMessageId, resolveSenderPhone, restoreSerializedMessageId } from '../src/message-identity.js'
 
 test('uses the serialized message ID when available', () => {
   assert.equal(getMessageId({ id: { _serialized: 'old-id' } }), 'old-id')
@@ -14,6 +14,15 @@ test('accepts the newer WhatsApp ID field and reconstructs an ID', () => {
     id: '3A123',
   } }), 'false_12345@lid_3A123')
   assert.equal(getMessageId({ id: { remote: '12345@lid' } }), null)
+})
+
+test('restores the serialized ID expected by media downloads', () => {
+  const message = { id: { fromMe: false, remote: '12345@lid', id: '3A123', $1: 'false_12345@lid_3A123' } }
+  assert.equal(restoreSerializedMessageId(message), 'false_12345@lid_3A123')
+  assert.equal(message.id._serialized, 'false_12345@lid_3A123')
+  const legacy = { id: { _serialized: 'legacy-id' } }
+  assert.equal(restoreSerializedMessageId(legacy), 'legacy-id')
+  assert.equal(legacy.id._serialized, 'legacy-id')
 })
 
 test('resolves a LID only when WhatsApp confirms its phone mapping', async () => {

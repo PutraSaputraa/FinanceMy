@@ -6,7 +6,7 @@ import whatsapp from 'whatsapp-web.js'
 import { createDelivery } from './delivery.js'
 import { createInbox } from './inbox.js'
 import { createMediaStore } from './media-store.js'
-import { getMessageId, resolveSenderPhone } from './message-identity.js'
+import { getMessageId, resolveSenderPhone, restoreSerializedMessageId } from './message-identity.js'
 import { claimPairingCode, pairingCodeFromMessage } from './pairing.js'
 
 const { Client, LocalAuth } = whatsapp
@@ -116,11 +116,13 @@ client.on('message', async (message) => {
 
   if (message.type === 'image' && message.hasMedia) {
     try {
+      restoreSerializedMessageId(message)
       const media = await message.downloadMedia()
+      if (!media) throw new Error('Media foto tidak tersedia dari WhatsApp.')
       record.media = mediaStore.save(id, media)
     } catch (error) {
       console.error('Foto struk tidak dapat disimpan:', error.message)
-      await client.sendMessage(message.from, `⚠️ *FOTO BELUM DIPROSES*\n\n${error.message}\n\nCoba kirim ulang foto yang lebih jelas dan lebih kecil.`)
+      await client.sendMessage(message.from, '⚠️ *FOTO BELUM DIPROSES*\n\nWhatsApp belum dapat mengunduh foto tersebut. Coba kirim ulang sebagai foto baru, bukan pesan sekali lihat.')
       return
     }
   }
