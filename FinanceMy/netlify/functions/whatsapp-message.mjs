@@ -50,6 +50,7 @@ function jakartaTime() {
 
 async function parseReceiptWithKenari(message) {
   const today = jakartaDate()
+  const imageDataUrl = `data:${message.media.mimeType};base64,${message.media.data}`
   const caption = message.text
     ? `Keterangan pengguna: ${message.text}`
     : 'Tidak ada keterangan tambahan dari pengguna.'
@@ -57,11 +58,12 @@ async function parseReceiptWithKenari(message) {
     { role: 'system', content: `Baca satu foto struk sebagai draf pengeluaran FinanceMy. Hari ini ${today} zona Asia/Jakarta. Balas hanya objek JSON tanpa markdown. Jika foto bukan struk atau isinya tidak dapat dibaca, balas {"kind":"ignore"}. Jika terbaca, balas {"kind":"transaction","type":"expense","title":"nama toko atau transaksi singkat","amount":total akhir yang benar-benar dibayar berupa angka atau null,"category":"kategori","date":"YYYY-MM-DD","accountHint":"nama akun dari keterangan pengguna atau kosong","budgetHint":"nama budget dari keterangan pengguna atau kosong"}. Ambil grand total/total pembayaran, bukan subtotal, uang tunai yang diserahkan, kembalian, pajak terpisah, atau total per barang. Jika total meragukan, isi amount null. Jika tanggal struk tidak terbaca, gunakan ${today}. Kategori: Makan & Minum, Transportasi, Belanja, Kebutuhan Rumah, Tagihan, Langganan, Hiburan, Pengeluaran Lainnya. AccountHint dan budgetHint hanya boleh berasal dari keterangan pengguna, jangan menebak dari gambar.` },
     { role: 'user', content: [
       { type: 'text', text: caption },
-      { type: 'file', file: { filename: message.media.filename, file_data: `data:${message.media.mimeType};base64,${message.media.data}` } },
+      { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
     ] },
   ], {
+    model: process.env.KENARI_VISION_MODEL || 'agnes-2-5-flash:free',
+    fallbackModel: process.env.KENARI_VISION_FALLBACK_MODEL || 'agnes-2-0-flash:free',
     maxTokens: 350,
-    plugins: [{ id: 'file-parser', pdf: { engine: 'ocr' } }],
     timeoutMs: 45_000,
   })
   const draft = parseWhatsAppDraft(content, today)

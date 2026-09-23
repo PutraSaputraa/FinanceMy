@@ -36,36 +36,40 @@ export function createDelivery(inbox, directory, fetchMessage = fetch, sendReply
         let record
         try { record = JSON.parse(line) } catch { continue }
         if (!record.id || delivered.has(record.id)) continue
-        const isText = record.type === 'chat' && record.text?.trim()
-        const isReceipt = record.type === 'image' && record.media && mediaStore
-        if (!isText && !isReceipt) {
-          markDelivered(record.id)
-          continue
-        }
-        let media
-        if (isReceipt) {
-          try {
-            media = mediaStore.read(record.media)
-          } catch {
-            await sendReply(record.senderId, '⚠️ *FOTO TIDAK TERSEDIA*\n\nKirim ulang foto struk agar dapat diproses.')
+        try {
+          const isText = record.type === 'chat' && record.text?.trim()
+          const isReceipt = record.type === 'image' && record.media && mediaStore
+          if (!isText && !isReceipt) {
             markDelivered(record.id)
             continue
           }
+          let media
+          if (isReceipt) {
+            try {
+              media = mediaStore.read(record.media)
+            } catch {
+              await sendReply(record.senderId, '⚠️ *FOTO TIDAK TERSEDIA*\n\nKirim ulang foto struk agar dapat diproses.')
+              markDelivered(record.id)
+              continue
+            }
+          }
+          const result = await fetchMessage(endpoint, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-financemy-connector-key': key },
+            body: JSON.stringify({ id: record.id, senderId: record.senderId, phone: record.phone, type: record.type, text: record.text, ...(media ? { media } : {}) }),
+            signal: AbortSignal.timeout(55000),
+          })
+          if (!result.ok && result.status !== 202) throw new Error(`HTTP ${result.status}`)
+          const outcome = typeof result.json === 'function' ? await result.json() : {}
+          if (typeof outcome?.reply === 'string' && outcome.reply) {
+            await sendReply(record.senderId, outcome.reply)
+          }
+          markDelivered(record.id)
+          if (record.media && mediaStore) mediaStore.remove(record.media)
+          console.log('Pesan WhatsApp terkirim untuk pemrosesan FinanceMy.')
+        } catch (error) {
+          console.error(`Pengiriman pesan WhatsApp jenis ${record.type || 'tidak dikenal'} akan dicoba lagi:`, error.message)
         }
-        const result = await fetchMessage(endpoint, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-financemy-connector-key': key },
-          body: JSON.stringify({ id: record.id, senderId: record.senderId, phone: record.phone, type: record.type, text: record.text, ...(media ? { media } : {}) }),
-          signal: AbortSignal.timeout(55000),
-        })
-        if (!result.ok && result.status !== 202) throw new Error(`HTTP ${result.status}`)
-        const outcome = typeof result.json === 'function' ? await result.json() : {}
-        if (typeof outcome?.reply === 'string' && outcome.reply) {
-          await sendReply(record.senderId, outcome.reply)
-        }
-        markDelivered(record.id)
-        if (record.media && mediaStore) mediaStore.remove(record.media)
-        console.log('Pesan WhatsApp terkirim untuk pemrosesan FinanceMy.')
       }
     } catch (error) {
       console.error('Pengiriman pesan WhatsApp akan dicoba lagi:', error.message)

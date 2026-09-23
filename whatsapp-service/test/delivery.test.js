@@ -85,3 +85,43 @@ test('delivers a receipt image and removes its temporary file', async (t) => {
   delivery.stop()
   inbox.close()
 })
+
+test('a failed receipt does not block later chat messages', async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'financemy-wa-fair-delivery-'))
+  const previousEndpoint = process.env.WA_INGEST_ENDPOINT
+  const previousKey = process.env.WA_CONNECTOR_KEY
+  process.env.WA_INGEST_ENDPOINT = 'https://example.test/ingest'
+  process.env.WA_CONNECTOR_KEY = 'test-key'
+  t.after(() => {
+    if (previousEndpoint === undefined) delete process.env.WA_INGEST_ENDPOINT
+    else process.env.WA_INGEST_ENDPOINT = previousEndpoint
+    if (previousKey === undefined) delete process.env.WA_CONNECTOR_KEY
+    else process.env.WA_CONNECTOR_KEY = previousKey
+    fs.rmSync(directory, { recursive: true, force: true })
+  })
+
+  const inbox = createInbox(directory)
+  const reference = { key: 'media-key', mimeType: 'image/jpeg', filename: 'struk.jpg', size: 7 }
+  inbox.append({ id: 'receipt-failed', senderId: '123@lid', phone: null, type: 'image', text: '', media: reference })
+  inbox.append({ id: 'chat-success', senderId: '123@lid', phone: null, type: 'chat', text: 'Hai' })
+  const mediaStore = {
+    read: (value) => ({ ...value, data: Buffer.from('receipt').toString('base64') }),
+    remove: () => {},
+  }
+  const calls = []
+  const send = async (_url, options) => {
+    const body = JSON.parse(options.body)
+    calls.push(body.id)
+    if (body.type === 'image') return { ok: false, status: 503, json: async () => ({}) }
+    return { ok: true, status: 200, json: async () => ({ reply: 'Halo juga.' }) }
+  }
+  const replies = []
+  const delivery = createDelivery(inbox, directory, send, async (_to, text) => replies.push(text), mediaStore)
+
+  await delivery.flush()
+
+  assert.deepEqual(calls, ['receipt-failed', 'chat-success'])
+  assert.deepEqual(replies, ['Halo juga.'])
+  delivery.stop()
+  inbox.close()
+})
