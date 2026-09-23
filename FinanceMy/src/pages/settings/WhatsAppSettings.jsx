@@ -86,12 +86,13 @@ export default function WhatsAppSettings({ user }) {
             <strong>Pendamping FinanceMy siap digunakan</strong>
             <p>Kirim catatan transaksi atau tanyakan kondisi keuanganmu langsung dari chat yang terhubung.</p>
             <ul>
+              <li>Kirim foto struk untuk dibuatkan draf</li>
               <li>“Budget bulan ini tersisa berapa?”</li>
               <li>“Apa saja transaksi rutinku?”</li>
               <li>“Berapa pengeluaran makan bulan ini?”</li>
               <li>“Tampilkan utang dan cicilanku.”</li>
             </ul>
-            <p>Transaksi baru selalu menjadi draf dan baru memengaruhi saldo setelah kamu membalas SUBMIT.</p>
+            <p>Transaksi teks dan hasil pembacaan struk selalu menjadi draf. Periksa hasilnya, lalu balas SUBMIT untuk mencatat.</p>
           </div>}
         </div>}
     <WhatsAppDrafts user={user}/>

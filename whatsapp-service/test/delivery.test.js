@@ -46,3 +46,42 @@ test('retries a failed delivery and does not resend after restart', async (t) =>
   delivery.stop()
   reopenedInbox.close()
 })
+
+test('delivers a receipt image and removes its temporary file', async (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'financemy-wa-receipt-'))
+  const previousEndpoint = process.env.WA_INGEST_ENDPOINT
+  const previousKey = process.env.WA_CONNECTOR_KEY
+  process.env.WA_INGEST_ENDPOINT = 'https://example.test/ingest'
+  process.env.WA_CONNECTOR_KEY = 'test-key'
+  t.after(() => {
+    if (previousEndpoint === undefined) delete process.env.WA_INGEST_ENDPOINT
+    else process.env.WA_INGEST_ENDPOINT = previousEndpoint
+    if (previousKey === undefined) delete process.env.WA_CONNECTOR_KEY
+    else process.env.WA_CONNECTOR_KEY = previousKey
+    fs.rmSync(directory, { recursive: true, force: true })
+  })
+
+  const inbox = createInbox(directory)
+  const reference = { key: 'media-key', mimeType: 'image/jpeg', filename: 'struk.jpg', size: 7 }
+  inbox.append({ id: 'receipt-1', senderId: '123@lid', phone: null, type: 'image', text: 'pakai BCA', media: reference })
+  const removed = []
+  const mediaStore = {
+    read: (value) => ({ ...value, data: Buffer.from('receipt').toString('base64') }),
+    remove: (value) => removed.push(value),
+  }
+  let requestBody
+  const send = async (_url, options) => {
+    requestBody = JSON.parse(options.body)
+    return { ok: true, status: 200, json: async () => ({ reply: 'Draf foto siap.' }) }
+  }
+  const replies = []
+  const delivery = createDelivery(inbox, directory, send, async (_to, text) => replies.push(text), mediaStore)
+  await delivery.flush()
+  assert.equal(requestBody.type, 'image')
+  assert.equal(requestBody.media.mimeType, 'image/jpeg')
+  assert.equal(requestBody.media.data, Buffer.from('receipt').toString('base64'))
+  assert.deepEqual(replies, ['Draf foto siap.'])
+  assert.deepEqual(removed, [reference])
+  delivery.stop()
+  inbox.close()
+})

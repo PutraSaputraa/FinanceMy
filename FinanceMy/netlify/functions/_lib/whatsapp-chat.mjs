@@ -76,7 +76,8 @@ export function draftConfirmation(parsed, accounts, budgets) {
   const accountLabel = account?.name || `belum dipilih${parsed?.accountHint ? ` (tertulis: ${parsed.accountHint})` : ''}`
   const budgetLabel = parsed?.budgetHint ? budget?.name || `tidak ditemukan (${parsed.budgetHint})` : 'tanpa budget'
   const accountHelp = !account && activeAccounts.length ? `\n\n*Pilihan akun*\n${activeAccounts.slice(0, 6).map((item) => `• ${item.name}`).join('\n')}` : ''
-  return `🧾 *DRAF TRANSAKSI*\n\n*${parsed?.title || 'Nama belum jelas'}*\n${type} • ${amount}\n\nAkun: *${accountLabel}*\nKategori: ${parsed?.category || 'belum jelas'}\nBudget: ${budgetLabel}\nTanggal: ${displayDate(parsed?.date)}${accountHelp}\n\nBalas:\n• *SUBMIT* untuk mencatat\n• *REVISI akun BCA* untuk mengubah\n• *BATAL* untuk membatalkan\n\n_Saldo baru berubah setelah SUBMIT._`
+  const receiptWarning = parsed?.receipt ? '\n\n_Hasil dibaca dari foto. Periksa kembali nominal, tanggal, dan nama toko sebelum SUBMIT._' : ''
+  return `🧾 *DRAF TRANSAKSI*\n\n*${parsed?.title || 'Nama belum jelas'}*\n${type} • ${amount}\n\nAkun: *${accountLabel}*\nKategori: ${parsed?.category || 'belum jelas'}\nBudget: ${budgetLabel}\nTanggal: ${displayDate(parsed?.date)}${accountHelp}${receiptWarning}\n\nBalas:\n• *SUBMIT* untuk mencatat\n• *REVISI akun BCA* untuk mengubah\n• *BATAL* untuk membatalkan\n\n_Saldo baru berubah setelah SUBMIT._`
 }
 
 export function chatTransactionValues(parsed, accounts, budgets, time) {

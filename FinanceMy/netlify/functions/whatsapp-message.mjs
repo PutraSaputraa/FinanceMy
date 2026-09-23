@@ -6,6 +6,7 @@ import { dismissDraft, DraftActionError, recordDraft } from './_lib/whatsapp-dra
 import { chatCommand, chatTransactionValues, draftConfirmation, simpleRevision } from './_lib/whatsapp-chat.mjs'
 import { matchesConnectorKey, validPhone, validSenderId } from './_lib/whatsapp-pairing.mjs'
 import { parseWhatsAppDraft } from './_lib/whatsapp-draft.mjs'
+import { receiptMedia } from './_lib/whatsapp-receipt.mjs'
 
 function response(status, body) {
   const result = jsonResponse(status, body)
@@ -17,8 +18,11 @@ function messageBody(body) {
   const id = typeof body?.id === 'string' ? body.id.trim() : ''
   const text = typeof body?.text === 'string' ? body.text.trim() : ''
   if (!id || id.length > 300 || !validSenderId(body?.senderId) || !validPhone(body?.phone ?? null)
-      || body?.type !== 'chat' || !text || text.length > 2000) return null
-  return { id, text, senderId: body.senderId, phone: body.phone ?? null }
+      || text.length > 2000) return null
+  if (body?.type === 'chat' && text) return { id, text, senderId: body.senderId, phone: body.phone ?? null, type: 'chat' }
+  const media = body?.type === 'image' ? receiptMedia(body.media) : null
+  if (!media || text.length > 500) return null
+  return { id, text, senderId: body.senderId, phone: body.phone ?? null, type: 'image', media }
 }
 
 async function linkedUser(senderId, phone) {
@@ -43,7 +47,7 @@ function jakartaTime() {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
 }
 
-async function kenariCompletion(messages) {
+async function kenariCompletion(messages, { maxTokens = 300, plugins, timeoutMs = 25_000 } = {}) {
   const key = process.env.KENARI_API_KEY
   if (!key) throw new Error('KENARI_API_KEY belum dikonfigurasi')
   const result = await fetch('https://kenari.id/v1/chat/completions', {
@@ -53,16 +57,38 @@ async function kenariCompletion(messages) {
       model: process.env.KENARI_MODEL || 'step-3-7-flash:free',
       stream: false,
       temperature: 0,
-      max_tokens: 300,
+      max_tokens: maxTokens,
       messages,
+      ...(plugins ? { plugins } : {}),
     }),
-    signal: AbortSignal.timeout(25000),
+    signal: AbortSignal.timeout(timeoutMs),
   })
   if (!result.ok) throw new Error(`Kenari HTTP ${result.status}`)
   const data = await result.json()
   const content = data?.choices?.[0]?.message?.content
   if (typeof content !== 'string' || !content.trim()) throw new Error('Respons Kenari kosong')
   return content
+}
+
+async function parseReceiptWithKenari(message) {
+  const today = jakartaDate()
+  const caption = message.text
+    ? `Keterangan pengguna: ${message.text}`
+    : 'Tidak ada keterangan tambahan dari pengguna.'
+  const content = await kenariCompletion([
+    { role: 'system', content: `Baca satu foto struk sebagai draf pengeluaran FinanceMy. Hari ini ${today} zona Asia/Jakarta. Balas hanya objek JSON tanpa markdown. Jika foto bukan struk atau isinya tidak dapat dibaca, balas {"kind":"ignore"}. Jika terbaca, balas {"kind":"transaction","type":"expense","title":"nama toko atau transaksi singkat","amount":total akhir yang benar-benar dibayar berupa angka atau null,"category":"kategori","date":"YYYY-MM-DD","accountHint":"nama akun dari keterangan pengguna atau kosong","budgetHint":"nama budget dari keterangan pengguna atau kosong"}. Ambil grand total/total pembayaran, bukan subtotal, uang tunai yang diserahkan, kembalian, pajak terpisah, atau total per barang. Jika total meragukan, isi amount null. Jika tanggal struk tidak terbaca, gunakan ${today}. Kategori: Makan & Minum, Transportasi, Belanja, Kebutuhan Rumah, Tagihan, Langganan, Hiburan, Pengeluaran Lainnya. AccountHint dan budgetHint hanya boleh berasal dari keterangan pengguna, jangan menebak dari gambar.` },
+    { role: 'user', content: [
+      { type: 'text', text: caption },
+      { type: 'file', file: { filename: message.media.filename, file_data: `data:${message.media.mimeType};base64,${message.media.data}` } },
+    ] },
+  ], {
+    maxTokens: 350,
+    plugins: [{ id: 'file-parser', pdf: { engine: 'ocr' } }],
+    timeoutMs: 45_000,
+  })
+  const draft = parseWhatsAppDraft(content, today)
+  if (draft.status === 'ignored') return null
+  return { ...draft, parsed: { ...draft.parsed, receipt: true } }
 }
 
 async function parseWithKenari(text) {
@@ -145,7 +171,7 @@ export default async (request) => {
     if (!uid) return response(202, { status: 'unlinked' })
     const ref = adminDb.doc(`users/${uid}/whatsappMessages/${createHash('sha256').update(message.id).digest('hex')}`)
     const activeRef = adminDb.doc(`waActiveDrafts/${uid}`)
-    const command = chatCommand(message.text)
+    const command = message.type === 'chat' ? chatCommand(message.text) : { kind: 'other' }
     const now = Date.now()
     let state = 'processing'
     let previousReply = null
@@ -166,7 +192,7 @@ export default async (request) => {
         return
       }
       targetDraftId = data?.targetDraftId || active.data()?.draftId || null
-      const update = { status: 'processing', leaseUntil: Timestamp.fromMillis(now + 35_000), updatedAt: FieldValue.serverTimestamp() }
+      const update = { status: 'processing', leaseUntil: Timestamp.fromMillis(now + 60_000), updatedAt: FieldValue.serverTimestamp() }
       if (targetDraftId) update.targetDraftId = targetDraftId
       if (snapshot.exists) transaction.update(ref, update)
       else transaction.create(ref, { ...update, text: message.text, senderId: message.senderId, phone: message.phone, receivedAt: FieldValue.serverTimestamp(), source: 'whatsapp' })
@@ -221,7 +247,16 @@ export default async (request) => {
         return finish(ref, 'handled', reply)
       }
 
-      const intent = await parseWithKenari(message.text)
+      if (message.type === 'image' && activeStatus === 'draft') {
+        return finish(ref, 'handled', '⏳ *DRAF MENUNGGU KEPUTUSAN*\n\nSelesaikan draf sebelumnya sebelum mengirim foto struk baru.\n\nBalas *SUBMIT*, *REVISI*, atau *BATAL*.')
+      }
+      const receiptDraft = message.type === 'image' ? await parseReceiptWithKenari(message) : null
+      if (message.type === 'image' && !receiptDraft) {
+        return finish(ref, 'handled', '📷 *STRUK BELUM TERBACA*\n\nCoba foto ulang dengan posisi lurus, cahaya cukup, dan seluruh struk terlihat.')
+      }
+      const intent = message.type === 'image'
+        ? { kind: 'transaction', draft: receiptDraft }
+        : await parseWithKenari(message.text)
       if (intent.kind === 'finance_query') {
         const data = await financeData(uid, intent.plan)
         return finish(ref, 'handled', answerFinanceQuery(intent.plan, data, jakartaDate()))
