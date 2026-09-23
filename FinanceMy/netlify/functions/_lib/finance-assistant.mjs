@@ -1,4 +1,5 @@
 import { parseWhatsAppDraft } from './whatsapp-draft.mjs'
+import { calculateAdaptiveBudget } from '../../../src/utils/calculations.js'
 
 const rupiah = new Intl.NumberFormat('id-ID')
 const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
@@ -48,6 +49,7 @@ export function parseAssistantIntent(content, fallbackDate) {
       periodStart: validDateKey(result.periodStart),
       periodEnd: validDateKey(result.periodEnd),
       transactionType,
+      budgetView: result.budgetView === 'daily' ? 'daily' : 'monthly',
       category: textValue(result.category),
       account: textValue(result.account),
       search: textValue(result.search, 120),
@@ -149,19 +151,53 @@ function budgetPeriodKey(item, today) {
   return item.periodKey || dateKey(item.createdAt)?.slice(0, 7) || today.slice(0, 7)
 }
 
+function assignedToBudget(item, budget) {
+  const hasBudgetId = Object.hasOwn(item, 'budgetId')
+  return hasBudgetId
+    ? item.budgetId === budget.id
+    : budget.trackingMode !== 'manual' && transactionCategory(item) === budget.name
+}
+
 function currentBudgets(data, today) {
   const budgets = data.budgets.filter((item) => item.isActive !== false && budgetPeriodKey(item, today) === today.slice(0, 7))
   return budgets.map((budget) => {
     const spent = data.transactions.reduce((total, item) => {
       if (itemDate(item)?.slice(0, 7) !== today.slice(0, 7)) return total
-      const hasBudgetId = Object.hasOwn(item, 'budgetId')
-      const assigned = hasBudgetId
-        ? item.budgetId === budget.id
-        : budget.trackingMode !== 'manual' && transactionCategory(item) === budget.name
-      return assigned ? total + expenseValue(item) : total
+      return assignedToBudget(item, budget) ? total + expenseValue(item) : total
     }, 0)
     return { ...budget, spent: Math.max(spent, 0), remaining: number(budget.amount) - Math.max(spent, 0) }
   })
+}
+
+function dailyBudgetAnswer(items, data, today) {
+  const [year, month, day] = today.split('-').map(Number)
+  const daysInPeriod = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const daysRemaining = daysInPeriod - day + 1
+  const blocks = limitedBlocks(items, (budget) => {
+    const spentToday = data.transactions.reduce((total, item) => {
+      if (itemDate(item) !== today || !assignedToBudget(item, budget)) return total
+      return total + expenseValue(item)
+    }, 0)
+    const spentBeforeToday = Math.max(budget.spent - spentToday, 0)
+    const guidance = calculateAdaptiveBudget({
+      amount: number(budget.amount),
+      spent: spentBeforeToday,
+      daysInPeriod,
+      daysRemaining,
+      method: budget.method || 'adaptive',
+      rolloverPercentage: number(budget.rolloverPercentage),
+    })
+    const availableToday = guidance.availableToday - spentToday
+    const availableLine = availableToday < 0
+      ? `Terlewati hari ini: *${money(-availableToday)}*`
+      : `Masih tersedia hari ini: *${money(availableToday)}*`
+    return `• *${budget.name}*\n  Batas aman hari ini: *${money(guidance.availableToday)}*\n  Sudah dipakai hari ini: ${money(spentToday)}\n  ${availableLine}\n  Sisa bulanan: ${money(budget.remaining)}`
+  })
+  return [
+    '🎯 *PANDUAN BUDGET HARI INI*',
+    ...blocks,
+    `_Dihitung dari sisa budget dan ${daysRemaining} hari tersisa, termasuk hari ini._`,
+  ].join('\n\n')
 }
 
 function accountsAnswer(data, plan) {
@@ -180,6 +216,7 @@ function budgetsAnswer(data, plan, today) {
   let items = currentBudgets(data, today)
   items = searched(items, plan.search, [(item) => item.name])
   if (!items.length) return `Belum ada budget ${plan.search ? `yang cocok dengan “${plan.search}” ` : ''}untuk ${monthLabel(today)}.`
+  if (plan.budgetView === 'daily' || plan.mode === 'advice') return dailyBudgetAnswer(items, data, today)
   const amount = items.reduce((sum, item) => sum + number(item.amount), 0)
   const spent = items.reduce((sum, item) => sum + item.spent, 0)
   const blocks = limitedBlocks(items, (item) => {

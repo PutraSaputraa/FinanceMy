@@ -41,6 +41,7 @@ const data = {
 const plan = (topics, extra = {}) => ({
   topics,
   mode: 'summary',
+  budgetView: 'monthly',
   periodStart: null,
   periodEnd: null,
   transactionType: 'all',
@@ -58,6 +59,9 @@ test('parses transaction, finance query, and unsupported intents', () => {
   const query = parseAssistantIntent('{"kind":"finance_query","topics":["budgets","accounts","invalid"],"mode":"list","transactionType":"all","search":"Jajan"}', today)
   assert.deepEqual(query.plan.topics, ['budgets', 'accounts'])
   assert.equal(query.plan.search, 'Jajan')
+  assert.equal(query.plan.budgetView, 'monthly')
+  const daily = parseAssistantIntent('{"kind":"finance_query","topics":["budgets"],"mode":"advice","budgetView":"daily","search":"Jajan"}', today)
+  assert.equal(daily.plan.budgetView, 'daily')
   assert.deepEqual(parseAssistantIntent('{"kind":"unsupported"}', today), { kind: 'unsupported' })
 })
 
@@ -72,6 +76,24 @@ test('calculates account balances and manually assigned budget spending', () => 
   assert.match(budgets, /\*Jajan\*\n  Sisa \*Rp850\.000\*/)
   assert.match(budgets, /\*Transport\*\n  Sisa \*Rp400\.000\*/)
   assert.match(budgets, /Terpakai Rp150\.000 • Sisa/)
+})
+
+test('recommends a daily amount for a selected budget', () => {
+  const dailyData = {
+    ...data,
+    transactions: [
+      ...data.transactions,
+      { title: 'Sarapan', type: 'expense', amount: 50_000, budgetId: 'b1', category: 'Makan & Minum', accountName: 'Tunai', date: today },
+    ],
+  }
+  const answer = answerFinanceQuery(plan(['budgets'], {
+    mode: 'advice', budgetView: 'daily', search: 'Jajan',
+  }), dailyData, today)
+  assert.match(answer, /\*PANDUAN BUDGET HARI INI\*/)
+  assert.match(answer, /Batas aman hari ini: \*Rp106\.250\*/)
+  assert.match(answer, /Sudah dipakai hari ini: Rp50\.000/)
+  assert.match(answer, /Masih tersedia hari ini: \*Rp56\.250\*/)
+  assert.match(answer, /Sisa bulanan: Rp800\.000/)
 })
 
 test('answers obligations, recurring transactions, and goals from stored values', () => {
