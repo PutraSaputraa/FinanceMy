@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { adminDb, response as jsonResponse } from './_lib/firebase-admin.mjs'
 import { answerFinanceQuery, parseAssistantIntent } from './_lib/finance-assistant.mjs'
+import { kenariCompletion } from './_lib/kenari.mjs'
 import { dismissDraft, DraftActionError, recordDraft } from './_lib/whatsapp-draft-actions.mjs'
 import { chatCommand, chatTransactionValues, draftConfirmation, simpleRevision } from './_lib/whatsapp-chat.mjs'
 import { matchesConnectorKey, validPhone, validSenderId } from './_lib/whatsapp-pairing.mjs'
@@ -45,29 +46,6 @@ function jakartaDate() {
 
 function jakartaTime() {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date())
-}
-
-async function kenariCompletion(messages, { maxTokens = 300, plugins, timeoutMs = 25_000 } = {}) {
-  const key = process.env.KENARI_API_KEY
-  if (!key) throw new Error('KENARI_API_KEY belum dikonfigurasi')
-  const result = await fetch('https://kenari.id/v1/chat/completions', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: process.env.KENARI_MODEL || 'step-3-7-flash:free',
-      stream: false,
-      temperature: 0,
-      max_tokens: maxTokens,
-      messages,
-      ...(plugins ? { plugins } : {}),
-    }),
-    signal: AbortSignal.timeout(timeoutMs),
-  })
-  if (!result.ok) throw new Error(`Kenari HTTP ${result.status}`)
-  const data = await result.json()
-  const content = data?.choices?.[0]?.message?.content
-  if (typeof content !== 'string' || !content.trim()) throw new Error('Respons Kenari kosong')
-  return content
 }
 
 async function parseReceiptWithKenari(message) {
