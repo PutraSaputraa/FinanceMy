@@ -82,7 +82,17 @@ export default function WhatsAppSettings({ user }) {
               <p>Kirim persis kode di atas sebagai satu pesan. Halaman ini akan menampilkan status terhubung secara otomatis.</p>
             </div> : <button type="button" className="primary-btn" onClick={createCode} disabled={busy}>{busy ? 'Membuat kode...' : 'Buat kode pasangan'}</button>}
           </>}
-          <p className="wa-link-note">Menghubungkan chat belum membuat transaksi otomatis. Pesan keuangan akan diproses setelah fitur pencatatan WhatsApp selesai.</p>
+          {connection?.connected && <div className="wa-assistant-guide">
+            <strong>Pendamping FinanceMy siap digunakan</strong>
+            <p>Kirim catatan transaksi atau tanyakan kondisi keuanganmu langsung dari chat yang terhubung.</p>
+            <ul>
+              <li>“Budget bulan ini tersisa berapa?”</li>
+              <li>“Apa saja transaksi rutinku?”</li>
+              <li>“Berapa pengeluaran makan bulan ini?”</li>
+              <li>“Tampilkan utang dan cicilanku.”</li>
+            </ul>
+            <p>Transaksi baru selalu menjadi draf dan baru memengaruhi saldo setelah kamu membalas SUBMIT.</p>
+          </div>}
         </div>}
     <WhatsAppDrafts user={user}/>
   </>

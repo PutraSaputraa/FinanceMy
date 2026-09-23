@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { adminDb, response as jsonResponse } from './_lib/firebase-admin.mjs'
+import { answerFinanceQuery, parseAssistantIntent } from './_lib/finance-assistant.mjs'
 import { dismissDraft, DraftActionError, recordDraft } from './_lib/whatsapp-draft-actions.mjs'
 import { chatCommand, chatTransactionValues, draftConfirmation, simpleRevision } from './_lib/whatsapp-chat.mjs'
 import { matchesConnectorKey, validPhone, validSenderId } from './_lib/whatsapp-pairing.mjs'
@@ -67,10 +68,16 @@ async function kenariCompletion(messages) {
 async function parseWithKenari(text) {
   const today = jakartaDate()
   const content = await kenariCompletion([
-    { role: 'system', content: `Ubah satu pesan WhatsApp menjadi draf transaksi keuangan pribadi. Hari ini ${today} zona Asia/Jakarta. Balas hanya objek JSON. Jika pesan bukan catatan transaksi yang jelas, balas {"kind":"ignore"}. Jika transaksi, isi field kind="transaction", type="expense" atau "income", title=nama singkat, amount=nominal rupiah angka atau null, category=kategori, date=tanggal YYYY-MM-DD, accountHint=nama sumber dana jika disebut atau string kosong, budgetHint=nama budget jika disebut atau string kosong. Kategori expense: Makan & Minum, Transportasi, Belanja, Kebutuhan Rumah, Tagihan, Langganan, Hiburan, Pengeluaran Lainnya. Kategori income: Gaji, Freelance, Bonus, Refund, Pemasukan lainnya. Jangan mengarang nominal, tanggal, sumber dana, atau budget. Jika nominal tidak jelas, tetap buat transaction dengan amount null agar pengguna mengisi. Transfer antar akun, pertanyaan, dan perintah bukan transaksi; balas ignore.` },
+    { role: 'system', content: `Kenali maksud satu pesan WhatsApp untuk FinanceMy. Hari ini ${today} zona Asia/Jakarta. Balas hanya satu objek JSON tanpa markdown.
+
+Jika pengguna menyatakan transaksi baru yang benar-benar terjadi, balas {"kind":"transaction","type":"expense|income","title":"nama singkat","amount":angka rupiah atau null,"category":"kategori","date":"YYYY-MM-DD","accountHint":"nama akun atau kosong","budgetHint":"nama budget atau kosong"}. Kategori expense: Makan & Minum, Transportasi, Belanja, Kebutuhan Rumah, Tagihan, Langganan, Hiburan, Pengeluaran Lainnya. Kategori income: Gaji, Freelance, Bonus, Refund, Pemasukan lainnya. Jangan mengarang nominal, akun, budget, atau tanggal. Jika tanggal tidak disebut, pakai hari ini. Transfer antar akun belum didukung.
+
+Jika pengguna meminta informasi, ringkasan, atau saran berdasarkan data akun FinanceMy miliknya, balas {"kind":"finance_query","topics":[...],"mode":"list|summary|advice","periodStart":"YYYY-MM-DD atau null","periodEnd":"YYYY-MM-DD atau null","transactionType":"all|expense|income|transfer","category":"atau kosong","account":"atau kosong","search":"nama yang dicari atau kosong"}. Topik yang diizinkan: overview, accounts, budgets, debts, receivables, installments, recurring, goals, transactions. Pilih maksimal 4 topik. Gunakan accounts untuk saldo, budgets untuk budget bulan berjalan, debts untuk utang, receivables untuk piutang, installments untuk cicilan, recurring untuk transaksi rutin, goals untuk target, transactions untuk riwayat/pemasukan/pengeluaran, dan overview untuk kondisi keuangan umum. Untuk pertanyaan transaksi, terjemahkan keterangan waktu relatif menjadi periodStart dan periodEnd. Untuk nama budget, utang, jadwal, atau target tertentu, masukkan namanya pada search. Untuk transaksi tertentu, gunakan category, account, atau search.
+
+Jika tidak berkaitan dengan pencatatan atau data keuangan FinanceMy, balas {"kind":"unsupported"}. Pertanyaan tidak boleh dianggap sebagai transaksi.` },
     { role: 'user', content: text },
   ])
-  return parseWhatsAppDraft(content, today)
+  return parseAssistantIntent(content, today)
 }
 
 async function reviseWithKenari(parsed, revision) {
@@ -92,6 +99,30 @@ async function choices(uid) {
     accounts: accounts.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
     budgets: budgets.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
   }
+}
+
+async function financeData(uid, plan) {
+  const required = new Set()
+  const dependencies = {
+    overview: ['accounts', 'transactions', 'budgets', 'debts', 'installments'],
+    accounts: ['accounts'],
+    budgets: ['transactions', 'budgets'],
+    debts: ['debts'],
+    receivables: ['receivables'],
+    installments: ['installments'],
+    recurring: ['recurringTransactions'],
+    goals: ['goals'],
+    transactions: ['transactions'],
+  }
+  for (const topic of plan.topics) dependencies[topic]?.forEach((name) => required.add(name))
+  const names = [...required]
+  const snapshots = await Promise.all(names.map((name) => {
+    const collection = adminDb.collection(`users/${uid}/${name}`)
+    return name === 'transactions' ? collection.limit(1000).get() : collection.get()
+  }))
+  const result = Object.fromEntries(Object.values(dependencies).flat().map((name) => [name, []]))
+  for (const [index, name] of names.entries()) result[name] = snapshots[index].docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  return result
 }
 
 async function finish(ref, status, reply) {
@@ -189,12 +220,21 @@ export default async (request) => {
         })
         return finish(ref, 'handled', reply)
       }
+
+      const intent = await parseWithKenari(message.text)
+      if (intent.kind === 'finance_query') {
+        const data = await financeData(uid, intent.plan)
+        return finish(ref, 'handled', answerFinanceQuery(intent.plan, data, jakartaDate()))
+      }
+      if (intent.kind === 'unsupported') {
+        const draftReminder = activeStatus === 'draft' ? ' Draf transaksimu masih tersimpan; balas SUBMIT, REVISI, atau BATAL untuk melanjutkan.' : ''
+        return finish(ref, 'handled', `Aku dapat membantu mencatat transaksi dan menjawab data FinanceMy seperti saldo, budget, utang, piutang, cicilan, transaksi rutin, riwayat transaksi, dan target keuangan.${draftReminder}`)
+      }
       if (activeStatus === 'draft') {
         return finish(ref, 'handled', 'Masih ada draf yang menunggu keputusan. Balas SUBMIT, REVISI diikuti perubahan, atau BATAL sebelum mengirim transaksi baru.')
       }
 
-      const draft = await parseWithKenari(message.text)
-      if (draft.status === 'ignored') return finish(ref, 'ignored', null)
+      const draft = intent.draft
       const { accounts, budgets } = await choices(uid)
       const reply = draftConfirmation(draft.parsed, accounts, budgets)
       await adminDb.runTransaction(async (transaction) => {
