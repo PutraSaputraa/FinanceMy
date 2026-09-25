@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { answerFinanceQuery, parseAssistantIntent } from '../netlify/functions/_lib/finance-assistant.mjs'
+import { answerFinanceQuery, extractGoalPlanHints, parseAssistantIntent } from '../netlify/functions/_lib/finance-assistant.mjs'
 
 const today = '2026-09-23'
 const data = {
@@ -42,9 +42,16 @@ const plan = (topics, extra = {}) => ({
   topics,
   mode: 'summary',
   budgetView: 'monthly',
+  adviceType: 'general',
   scenarioAmount: null,
   scenarioTitle: '',
   budget: '',
+  targetAmount: null,
+  currentSaved: null,
+  targetDate: null,
+  monthlyIncome: null,
+  incomeDay: null,
+  goalName: '',
   periodStart: null,
   periodEnd: null,
   transactionType: 'all',
@@ -70,7 +77,31 @@ test('parses transaction, finance query, and unsupported intents', () => {
   assert.equal(advice.plan.scenarioTitle, 'Sepatu')
   assert.equal(advice.plan.budget, 'Jajan')
   assert.equal(advice.plan.account, 'BCA')
+  const goalPlan = parseAssistantIntent('{"kind":"finance_query","topics":["goals","overview"],"mode":"advice","adviceType":"goal_plan","targetAmount":20000000,"currentSaved":4000000,"targetDate":"2027-02-28","monthlyIncome":5700000,"incomeDay":9,"goalName":"Dana Februari"}', today)
+  assert.equal(goalPlan.plan.adviceType, 'goal_plan')
+  assert.equal(goalPlan.plan.targetAmount, 20000000)
+  assert.equal(goalPlan.plan.currentSaved, 4000000)
+  assert.equal(goalPlan.plan.targetDate, '2027-02-28')
+  assert.equal(goalPlan.plan.monthlyIncome, 5700000)
+  assert.equal(goalPlan.plan.incomeDay, 9)
   assert.deepEqual(parseAssistantIntent('{"kind":"unsupported"}', today), { kind: 'unsupported' })
+})
+
+test('extracts Indonesian savings target details as a deterministic fallback', () => {
+  assert.deepEqual(
+    extractGoalPlanHints('Rencana aku ingin dapat 20jt di bulan februari 2027, dan aku sekarang sudah mengumpulkan 4jt, jika setiap tanggal 9 aku mendapatkan gaji 5,7 berapa pengeluaran perbulan yang bagus untuk mencapai target ku itu'),
+    {
+      targetAmount: 20_000_000,
+      currentSaved: 4_000_000,
+      targetDate: '2027-02-28',
+      monthlyIncome: 5_700_000,
+      incomeDay: 9,
+    },
+  )
+  assert.equal(
+    extractGoalPlanHints('Target 10 juta tanggal 15 Februari 2027, gaji 5 juta tiap tanggal 9').targetDate,
+    '2027-02-15',
+  )
 })
 
 test('calculates account balances and manually assigned budget spending', () => {
@@ -124,6 +155,21 @@ test('gives prioritized advice from the complete financial picture', () => {
   assert.match(answer, /Jatuh tempo 7 hari: \*Rp350\.000\*/)
   assert.match(answer, /Utang\/cicilan per bulan: \*Rp1\.250\.000\*/)
   assert.match(answer, /Prioritas yang kusarankan/)
+})
+
+test('plans monthly spending to reach a future savings target', () => {
+  const answer = answerFinanceQuery(plan(['goals', 'overview', 'recurring'], {
+    mode: 'advice', adviceType: 'goal_plan', targetAmount: 20_000_000,
+    currentSaved: 4_000_000, targetDate: '2027-02-28', monthlyIncome: 5_700_000,
+    incomeDay: 9, goalName: 'Target Februari 2027',
+  }), data, today)
+  assert.match(answer, /\*MYOUI • RENCANA TARGET\*/)
+  assert.match(answer, /Kurang \*Rp16\.000\.000\*/)
+  assert.match(answer, /Tersisa 5 kali gajian/)
+  assert.match(answer, /Pindahkan \*Rp3\.200\.000\* ke tabungan setiap tanggal 9/)
+  assert.match(answer, /Batas pengeluaran maksimal agar tepat target: \*Rp2\.500\.000\/bulan\*/)
+  assert.match(answer, /Target pengeluaran yang lebih aman: \*Rp2\.250\.000\/bulan\*/)
+  assert.match(answer, /buffer sekitar \*Rp250\.000\/bulan\*/)
 })
 
 test('answers obligations, recurring transactions, and goals from stored values', () => {

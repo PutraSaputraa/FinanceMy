@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { adminDb, response as jsonResponse } from './_lib/firebase-admin.mjs'
-import { answerFinanceQuery, parseAssistantIntent } from './_lib/finance-assistant.mjs'
+import { answerFinanceQuery, extractGoalPlanHints, parseAssistantIntent } from './_lib/finance-assistant.mjs'
 import { kenariCompletion } from './_lib/kenari.mjs'
 import { dismissDraft, DraftActionError, recordDraft } from './_lib/whatsapp-draft-actions.mjs'
 import { chatCommand, chatTransactionValues, draftConfirmation, simpleRevision } from './_lib/whatsapp-chat.mjs'
@@ -75,6 +75,10 @@ function asksForAdvice(text) {
   return /(aman(?:kah)?|boleh(?:kah)?|sebaiknya|menurutmu|bagaimana kalau|kalau.+(?:beli|bayar)|rencana|ingin membeli|mau beli)/i.test(text)
 }
 
+function asksForGoalPlan(text) {
+  return /(target|mengumpulkan|menabung).*(gaji|penghasilan|pemasukan)|(gaji|penghasilan|pemasukan).*(target|mengumpulkan|menabung)/i.test(text)
+}
+
 async function parseWithKenari(text) {
   const today = jakartaDate()
   const content = await kenariCompletion([
@@ -82,9 +86,11 @@ async function parseWithKenari(text) {
 
 Jika pengguna menyatakan transaksi baru yang benar-benar terjadi, balas {"kind":"transaction","type":"expense|income","title":"nama singkat","amount":angka rupiah atau null,"category":"kategori","date":"YYYY-MM-DD","accountHint":"nama akun atau kosong","budgetHint":"nama budget atau kosong"}. Kategori expense: Makan & Minum, Transportasi, Belanja, Kebutuhan Rumah, Tagihan, Langganan, Hiburan, Pengeluaran Lainnya. Kategori income: Gaji, Freelance, Bonus, Refund, Pemasukan lainnya. Jangan mengarang nominal, akun, budget, atau tanggal. Jika tanggal tidak disebut, pakai hari ini. Transfer antar akun belum didukung.
 
-Jika pengguna meminta informasi, ringkasan, atau saran berdasarkan data akun FinanceMy miliknya, balas {"kind":"finance_query","topics":[...],"mode":"list|summary|advice","budgetView":"monthly|daily","scenarioAmount":angka atau null,"scenarioTitle":"nama rencana atau kosong","budget":"nama budget yang disebut atau kosong","periodStart":"YYYY-MM-DD atau null","periodEnd":"YYYY-MM-DD atau null","transactionType":"all|expense|income|transfer","category":"atau kosong","account":"nama akun yang disebut atau kosong","search":"nama data yang dicari atau kosong"}. Topik yang diizinkan: overview, accounts, budgets, debts, receivables, installments, recurring, goals, transactions. Pilih maksimal 4 topik. Gunakan accounts untuk saldo, budgets untuk budget bulan berjalan, debts untuk utang, receivables untuk piutang, installments untuk cicilan, recurring untuk transaksi rutin, goals untuk target, transactions untuk riwayat/pemasukan/pengeluaran, dan overview untuk kondisi keuangan umum.
+Jika pengguna meminta informasi, ringkasan, atau saran berdasarkan data akun FinanceMy miliknya, balas {"kind":"finance_query","topics":[...],"mode":"list|summary|advice","adviceType":"general|purchase|goal_plan","budgetView":"monthly|daily","scenarioAmount":angka atau null,"scenarioTitle":"nama rencana atau kosong","budget":"nama budget yang disebut atau kosong","targetAmount":angka atau null,"currentSaved":angka atau null,"targetDate":"YYYY-MM-DD atau null","monthlyIncome":angka atau null,"incomeDay":angka 1-31 atau null,"goalName":"nama target atau kosong","periodStart":"YYYY-MM-DD atau null","periodEnd":"YYYY-MM-DD atau null","transactionType":"all|expense|income|transfer","category":"atau kosong","account":"nama akun yang disebut atau kosong","search":"nama data yang dicari atau kosong"}. Topik yang diizinkan: overview, accounts, budgets, debts, receivables, installments, recurring, goals, transactions. Pilih maksimal 4 topik. Gunakan accounts untuk saldo, budgets untuk budget bulan berjalan, debts untuk utang, receivables untuk piutang, installments untuk cicilan, recurring untuk transaksi rutin, goals untuk target, transactions untuk riwayat/pemasukan/pengeluaran, dan overview untuk kondisi keuangan umum.
 
 Untuk permintaan saran umum seperti kondisi keuangan, cara berhemat, atau prioritas bulan ini, gunakan mode="advice" dan topics yang relevan. Untuk rencana atau simulasi seperti “aman beli sepatu 600 ribu?”, “boleh bayar 1 juta?”, atau kalimat dengan mau/ingin/rencana/kalau, gunakan kind="finance_query", mode="advice", topics=["overview","budgets","recurring"], scenarioAmount berisi nominal, dan scenarioTitle berisi nama rencana. Rencana masa depan tidak boleh dianggap sebagai transaksi yang sudah terjadi. Isi budget dan account hanya jika pengguna menyebutkannya.
+
+Untuk perencanaan target seperti “ingin punya 20 juta Februari 2027, sudah ada 4 juta, gaji 5,7 juta tiap tanggal 9”, gunakan kind="finance_query", mode="advice", adviceType="goal_plan", topics=["goals","overview","recurring"]. Isi targetAmount=20000000, currentSaved=4000000, monthlyIncome=5700000, incomeDay=9, dan targetDate. Jika pengguna hanya menyebut bulan, targetDate harus memakai hari terakhir bulan tersebut. Nominal target bukan pengeluaran dan scenarioAmount harus null.
 
 Untuk pertanyaan batas aman, rekomendasi, atau sisa budget yang boleh dipakai hari ini tanpa rencana pembelian tertentu, gunakan topics=["budgets"], mode="advice", budgetView="daily", dan masukkan nama budget pada search. Untuk pertanyaan budget biasa gunakan budgetView="monthly". Untuk pertanyaan transaksi, terjemahkan keterangan waktu relatif menjadi periodStart dan periodEnd. Untuk nama budget, utang, jadwal, atau target tertentu, masukkan namanya pada search. Untuk transaksi tertentu, gunakan category, account, atau search.
 
@@ -92,17 +98,42 @@ Jika tidak berkaitan dengan pencatatan atau data keuangan FinanceMy, balas {"kin
     { role: 'user', content: text },
   ])
   let intent = parseAssistantIntent(content, today)
+  const goalPlanRequested = asksForGoalPlan(text)
+  const goalHints = goalPlanRequested ? extractGoalPlanHints(text) : null
   if (intent.kind === 'transaction' && asksForAdvice(text)) {
     const parsed = intent.draft.parsed
     intent = {
       kind: 'finance_query',
       plan: {
         topics: ['overview', 'budgets', 'recurring'], mode: 'advice', budgetView: 'monthly',
+        adviceType: 'purchase',
         scenarioAmount: Number(parsed.amount) || null, scenarioTitle: parsed.title || '',
         budget: parsed.budgetHint || '', periodStart: null, periodEnd: null,
+        targetAmount: null, currentSaved: null, targetDate: null, monthlyIncome: null,
+        incomeDay: null, goalName: '',
         transactionType: 'all', category: parsed.category || '', account: parsed.accountHint || '', search: '',
       },
     }
+  }
+  if (goalPlanRequested && intent.kind !== 'finance_query') {
+    intent = {
+      kind: 'finance_query',
+      plan: {
+        topics: ['goals', 'overview', 'recurring'], mode: 'advice', adviceType: 'goal_plan',
+        budgetView: 'monthly', scenarioAmount: null, scenarioTitle: '', budget: '',
+        ...goalHints, goalName: 'Target tabungan', periodStart: null, periodEnd: null,
+        transactionType: 'all', category: '', account: '', search: '',
+      },
+    }
+  }
+  if (intent.kind === 'finance_query' && goalPlanRequested) {
+    intent.plan.mode = 'advice'
+    intent.plan.adviceType = 'goal_plan'
+    if (!intent.plan.targetAmount && intent.plan.scenarioAmount) intent.plan.targetAmount = intent.plan.scenarioAmount
+    for (const field of ['targetAmount', 'currentSaved', 'targetDate', 'monthlyIncome', 'incomeDay']) {
+      if (goalHints[field] !== null && goalHints[field] !== undefined) intent.plan[field] = goalHints[field]
+    }
+    intent.plan.scenarioAmount = null
   }
   if (intent.kind === 'finance_query' && intent.plan.topics.includes('budgets')
       && !intent.plan.scenarioAmount && /(hari ini|harian|per hari|sehari|batas aman)/i.test(text)) {

@@ -34,6 +34,65 @@ function positiveAmount(value) {
   return Number.isFinite(amount) && amount > 0 ? amount : null
 }
 
+function nonNegativeAmount(value) {
+  if (value === null || value === undefined || value === '') return null
+  const amount = Number(value)
+  return Number.isFinite(amount) && amount >= 0 ? amount : null
+}
+
+const amountPattern = String.raw`(\d[\d.]*(?:,\d+)?)\s*(juta|jt|ribu|rb|k)?`
+const monthNumbers = {
+  januari: 1, februari: 2, maret: 3, april: 4, mei: 5, juni: 6,
+  juli: 7, agustus: 8, september: 9, oktober: 10, november: 11, desember: 12,
+}
+
+function localizedAmount(raw, unit) {
+  if (!raw) return null
+  const normalizedNumber = raw.includes(',')
+    ? raw.replaceAll('.', '').replace(',', '.')
+    : raw.replaceAll('.', '')
+  const value = Number(normalizedNumber)
+  if (!Number.isFinite(value)) return null
+  const multiplier = ['juta', 'jt'].includes(unit) ? 1_000_000
+    : ['ribu', 'rb', 'k'].includes(unit) ? 1_000 : 1
+  return positiveAmount(value * multiplier)
+}
+
+function amountAfter(text, prefix, distance = 50) {
+  const match = text.match(new RegExp(`(?:${prefix})[^\\d]{0,${distance}}${amountPattern}`, 'i'))
+  return match ? localizedAmount(match[1], match[2]?.toLocaleLowerCase('id-ID')) : null
+}
+
+export function extractGoalPlanHints(text) {
+  const source = String(text || '').toLocaleLowerCase('id-ID')
+  const exactDateMatch = source.match(/\b(?:tanggal\s+)?(\d{1,2})\s+(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s+(20\d{2})\b/i)
+  const monthMatch = source.match(/\b(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\s+(20\d{2})\b/i)
+  let targetDate = null
+  if (exactDateMatch) {
+    const year = Number(exactDateMatch[3])
+    const month = monthNumbers[exactDateMatch[2]]
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+    const day = Number(exactDateMatch[1])
+    if (day <= lastDay) targetDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  } else if (monthMatch) {
+    const year = Number(monthMatch[2])
+    const month = monthNumbers[monthMatch[1]]
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+    targetDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  }
+  const dayMatch = source.match(/(?:setiap\s+)?(?:tanggal|tgl)\s*(\d{1,2})/i)
+  const incomeDay = dayMatch && Number(dayMatch[1]) >= 1 && Number(dayMatch[1]) <= 31
+    ? Number(dayMatch[1]) : null
+  const extractedIncome = amountAfter(source, 'gaji|penghasilan|pemasukan', 30)
+  return {
+    targetAmount: amountAfter(source, String.raw`target(?:\s+(?:tabungan|dana|keuangan))?|ingin\s+(?:dapat|punya|memiliki|mengumpulkan)|mau\s+(?:punya|memiliki|mengumpulkan)`),
+    currentSaved: amountAfter(source, String.raw`sudah\s+(?:(?:berhasil|terkumpul)\s+)?(?:mengumpulkan|menabung|punya|memiliki|ada)|(?:telah|sudah)\s+terkumpul|dana\s+saat\s+ini`),
+    targetDate,
+    monthlyIncome: extractedIncome && extractedIncome < 100 ? extractedIncome * 1_000_000 : extractedIncome,
+    incomeDay,
+  }
+}
+
 export function parseAssistantIntent(content, fallbackDate) {
   const result = jsonObject(content)
   if (result?.kind === 'transaction') {
@@ -46,6 +105,8 @@ export function parseAssistantIntent(content, fallbackDate) {
   if (!topics.length) return { kind: 'unsupported' }
   const transactionType = ['expense', 'income', 'transfer'].includes(result.transactionType)
     ? result.transactionType : 'all'
+  const targetAmount = positiveAmount(result.targetAmount)
+  const targetDate = validDateKey(result.targetDate)
   return {
     kind: 'finance_query',
     plan: {
@@ -55,9 +116,18 @@ export function parseAssistantIntent(content, fallbackDate) {
       periodEnd: validDateKey(result.periodEnd),
       transactionType,
       budgetView: result.budgetView === 'daily' ? 'daily' : 'monthly',
+      adviceType: result.adviceType === 'goal_plan' || (targetAmount && targetDate)
+        ? 'goal_plan' : result.adviceType === 'purchase' ? 'purchase' : 'general',
       scenarioAmount: positiveAmount(result.scenarioAmount),
       scenarioTitle: textValue(result.scenarioTitle, 100),
       budget: textValue(result.budget),
+      targetAmount,
+      currentSaved: nonNegativeAmount(result.currentSaved),
+      targetDate,
+      monthlyIncome: positiveAmount(result.monthlyIncome),
+      incomeDay: Number.isInteger(Number(result.incomeDay)) && Number(result.incomeDay) >= 1 && Number(result.incomeDay) <= 31
+        ? Number(result.incomeDay) : null,
+      goalName: textValue(result.goalName, 100),
       category: textValue(result.category),
       account: textValue(result.account),
       search: textValue(result.search, 120),
@@ -230,7 +300,120 @@ function upcomingRecurring(data, today, days = 7) {
   })
 }
 
+function monthlyPaydays(today, targetDate, incomeDay) {
+  if (!validDateKey(today) || !validDateKey(targetDate) || !incomeDay) return []
+  const [startYear, startMonth] = today.split('-').map(Number)
+  const [endYear, endMonth] = targetDate.split('-').map(Number)
+  const dates = []
+  let year = startYear
+  let month = startMonth
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate()
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(Math.min(incomeDay, lastDay)).padStart(2, '0')}`
+    if (date > today && date <= targetDate) dates.push(date)
+    month += 1
+    if (month === 13) {
+      month = 1
+      year += 1
+    }
+  }
+  return dates
+}
+
+function goalPlanAdviceAnswer(data, plan, today) {
+  const goalQuery = plan.goalName || plan.search
+  const storedGoal = goalQuery
+    ? data.goals.filter((item) => item.isActive !== false && normalized(item.status) !== 'selesai')
+      .find((item) => normalized(item.name).includes(normalized(goalQuery)))
+    : null
+  const targetAmount = number(plan.targetAmount || storedGoal?.target)
+  const currentSaved = plan.currentSaved === null || plan.currentSaved === undefined
+    ? number(storedGoal?.saved) : number(plan.currentSaved)
+  const targetDate = plan.targetDate || dateKey(storedGoal?.deadline)
+  const recurringIncome = data.recurringTransactions
+    .filter((item) => item.isActive !== false && normalized(item.type) === 'pemasukan rutin')
+    .reduce((sum, item) => sum + number(item.amount), 0)
+  const month = monthBounds(today)
+  const recordedIncome = data.transactions.reduce((sum, item) => {
+    const date = itemDate(item)
+    return date && date >= month.start && date <= month.end ? sum + incomeValue(item) : sum
+  }, 0)
+  const monthlyIncome = number(plan.monthlyIncome || recurringIncome || recordedIncome)
+  const incomeDay = plan.incomeDay || null
+  const missing = []
+  if (!targetAmount) missing.push('jumlah target')
+  if (!targetDate) missing.push('bulan atau tanggal target')
+  if (!monthlyIncome) missing.push('pemasukan bulanan')
+  if (!incomeDay) missing.push('tanggal menerima pemasukan')
+  if (missing.length) {
+    return [
+      '🎯 *MYOUI • RENCANA TARGET*',
+      `Aku masih membutuhkan ${missing.join(', ')} untuk menghitung rencananya.`,
+      '_Contoh: “Target Rp20 juta pada Februari 2027, sudah ada Rp4 juta, gaji Rp5,7 juta setiap tanggal 9.”_',
+    ].join('\n\n')
+  }
+
+  const gap = Math.max(targetAmount - currentSaved, 0)
+  if (gap === 0) {
+    return [
+      '🎯 *MYOUI • RENCANA TARGET*',
+      `Target *${money(targetAmount)}* sudah tercapai dari dana terkumpul ${money(currentSaved)}.`,
+      'Pertahankan dana tersebut di akun yang terpisah agar tidak terpakai untuk pengeluaran harian.',
+    ].join('\n\n')
+  }
+
+  const paydays = monthlyPaydays(today, targetDate, incomeDay)
+  if (!paydays.length) {
+    return [
+      '🎯 *MYOUI • RENCANA TARGET*',
+      `Tanggal target ${displayDate(targetDate)} sudah terlalu dekat atau telah lewat sebelum jadwal pemasukan berikutnya.`,
+      `Kekurangan yang masih harus dikumpulkan: *${money(gap)}*.`,
+    ].join('\n\n')
+  }
+
+  const requiredSaving = gap / paydays.length
+  const maximumSpending = monthlyIncome - requiredSaving
+  const monthlyObligations = [...active(data.debts), ...active(data.installments)]
+    .reduce((sum, item) => sum + number(item.monthly), 0)
+  const title = plan.goalName || storedGoal?.name || `Target ${money(targetAmount)}`
+  if (maximumSpending < 0) {
+    const shortfall = -maximumSpending
+    return [
+      '🎯 *MYOUI • RENCANA TARGET*',
+      `*${title}*\nTarget ${money(targetAmount)} pada ${displayDate(targetDate)}\nSudah terkumpul ${money(currentSaved)} • Kurang *${money(gap)}*`,
+      `Tersisa *${paydays.length} kali gajian* (${displayDate(paydays[0])} sampai ${displayDate(paydays.at(-1))}).`,
+      `Kamu perlu menabung *${money(requiredSaving)} setiap gajian*, sedangkan pemasukanmu ${money(monthlyIncome)}. Masih kurang *${money(shortfall)} per bulan* bahkan sebelum pengeluaran.`,
+      '*Saran Myoui*\n• Mundurkan tanggal target\n• Kurangi jumlah target awal\n• Tambah pemasukan sebesar kekurangannya',
+    ].join('\n\n')
+  }
+
+  const recommendedSpending = maximumSpending * 0.9
+  const buffer = maximumSpending - recommendedSpending
+  const flexibleAfterObligations = recommendedSpending - monthlyObligations
+  const notes = [
+    `• Pindahkan *${money(requiredSaving)}* ke tabungan setiap tanggal ${incomeDay}`,
+    `• Batas pengeluaran maksimal agar tepat target: *${money(maximumSpending)}/bulan*`,
+    `• Target pengeluaran yang lebih aman: *${money(recommendedSpending)}/bulan*`,
+    `• Sisakan buffer sekitar *${money(buffer)}/bulan*`,
+  ]
+  if (monthlyObligations) {
+    notes.push(`• Dari batas aman tersebut, utang/cicilan tercatat memakai ${money(monthlyObligations)}; sisa untuk pengeluaran lain sekitar *${money(flexibleAfterObligations)}*`)
+  }
+  const obligationWarning = flexibleAfterObligations < 0
+    ? '\n\n⚠️ Kewajiban bulanan yang tercatat lebih besar daripada batas pengeluaran aman. Target perlu diperpanjang atau pemasukan perlu ditambah.'
+    : ''
+
+  return [
+    '🎯 *MYOUI • RENCANA TARGET*',
+    `*${title}*\nTarget ${money(targetAmount)} pada ${displayDate(targetDate)}\nSudah terkumpul ${money(currentSaved)} • Kurang *${money(gap)}*`,
+    `*Perhitungannya*\nTersisa ${paydays.length} kali gajian\n${displayDate(paydays[0])} sampai ${displayDate(paydays.at(-1))}\nPemasukan ${money(monthlyIncome)} per gajian`,
+    `*Rencana yang kusarankan*\n${notes.join('\n')}${obligationWarning}`,
+    `_Asumsi: pemasukan diterima satu kali setiap bulan dan target harus tercapai paling lambat ${displayDate(targetDate)}._`,
+  ].join('\n\n')
+}
+
 function financialAdviceAnswer(data, plan, today) {
+  if (plan.adviceType === 'goal_plan') return goalPlanAdviceAnswer(data, plan, today)
   const accounts = data.accounts.filter((item) => item.isActive !== false)
   const selectedAccount = plan.account
     ? accounts.find((item) => normalized(item.name).includes(normalized(plan.account)))
