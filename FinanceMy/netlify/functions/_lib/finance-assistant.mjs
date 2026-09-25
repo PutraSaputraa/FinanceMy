@@ -29,6 +29,11 @@ function textValue(value, max = 80) {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
+function positiveAmount(value) {
+  const amount = Number(value)
+  return Number.isFinite(amount) && amount > 0 ? amount : null
+}
+
 export function parseAssistantIntent(content, fallbackDate) {
   const result = jsonObject(content)
   if (result?.kind === 'transaction') {
@@ -50,6 +55,9 @@ export function parseAssistantIntent(content, fallbackDate) {
       periodEnd: validDateKey(result.periodEnd),
       transactionType,
       budgetView: result.budgetView === 'daily' ? 'daily' : 'monthly',
+      scenarioAmount: positiveAmount(result.scenarioAmount),
+      scenarioTitle: textValue(result.scenarioTitle, 100),
+      budget: textValue(result.budget),
       category: textValue(result.category),
       account: textValue(result.account),
       search: textValue(result.search, 120),
@@ -174,29 +182,152 @@ function dailyBudgetAnswer(items, data, today) {
   const daysInPeriod = new Date(Date.UTC(year, month, 0)).getUTCDate()
   const daysRemaining = daysInPeriod - day + 1
   const blocks = limitedBlocks(items, (budget) => {
-    const spentToday = data.transactions.reduce((total, item) => {
-      if (itemDate(item) !== today || !assignedToBudget(item, budget)) return total
-      return total + expenseValue(item)
-    }, 0)
-    const spentBeforeToday = Math.max(budget.spent - spentToday, 0)
-    const guidance = calculateAdaptiveBudget({
-      amount: number(budget.amount),
-      spent: spentBeforeToday,
-      daysInPeriod,
-      daysRemaining,
-      method: budget.method || 'adaptive',
-      rolloverPercentage: number(budget.rolloverPercentage),
-    })
-    const availableToday = guidance.availableToday - spentToday
-    const availableLine = availableToday < 0
-      ? `Terlewati hari ini: *${money(-availableToday)}*`
-      : `Masih tersedia hari ini: *${money(availableToday)}*`
-    return `• *${budget.name}*\n  Batas aman hari ini: *${money(guidance.availableToday)}*\n  Sudah dipakai hari ini: ${money(spentToday)}\n  ${availableLine}\n  Sisa bulanan: ${money(budget.remaining)}`
+    const daily = dailyBudgetMetrics(budget, data, today)
+    const availableLine = daily.remainingToday < 0
+      ? `Terlewati hari ini: *${money(-daily.remainingToday)}*`
+      : `Masih tersedia hari ini: *${money(daily.remainingToday)}*`
+    return `• *${budget.name}*\n  Batas aman hari ini: *${money(daily.availableToday)}*\n  Sudah dipakai hari ini: ${money(daily.spentToday)}\n  ${availableLine}\n  Sisa bulanan: ${money(budget.remaining)}`
   })
   return [
     '🎯 *PANDUAN BUDGET HARI INI*',
     ...blocks,
     `_Dihitung dari sisa budget dan ${daysRemaining} hari tersisa, termasuk hari ini._`,
+  ].join('\n\n')
+}
+
+function dailyBudgetMetrics(budget, data, today) {
+  const [year, month, day] = today.split('-').map(Number)
+  const daysInPeriod = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  const daysRemaining = daysInPeriod - day + 1
+  const spentToday = data.transactions.reduce((total, item) => {
+    if (itemDate(item) !== today || !assignedToBudget(item, budget)) return total
+    return total + expenseValue(item)
+  }, 0)
+  const spentBeforeToday = Math.max(budget.spent - spentToday, 0)
+  const guidance = calculateAdaptiveBudget({
+    amount: number(budget.amount),
+    spent: spentBeforeToday,
+    daysInPeriod,
+    daysRemaining,
+    method: budget.method || 'adaptive',
+    rolloverPercentage: number(budget.rolloverPercentage),
+  })
+  return {
+    spentToday,
+    availableToday: guidance.availableToday,
+    remainingToday: guidance.availableToday - spentToday,
+  }
+}
+
+function upcomingRecurring(data, today, days = 7) {
+  const end = new Date(`${today}T00:00:00Z`)
+  end.setUTCDate(end.getUTCDate() + days)
+  const endKey = end.toISOString().slice(0, 10)
+  return data.recurringTransactions.filter((item) => {
+    const due = dateKey(item.nextDate || item.date || item.dueDate)
+    return item.isActive !== false && normalized(item.type) !== 'pemasukan rutin'
+      && due && due >= today && due <= endKey
+  })
+}
+
+function financialAdviceAnswer(data, plan, today) {
+  const accounts = data.accounts.filter((item) => item.isActive !== false)
+  const selectedAccount = plan.account
+    ? accounts.find((item) => normalized(item.name).includes(normalized(plan.account)))
+    : null
+  const totalBalance = accounts.reduce((sum, item) => sum + number(item.currentBalance), 0)
+  const availableBalance = selectedAccount ? number(selectedAccount.currentBalance) : totalBalance
+  const month = monthBounds(today)
+  const monthTransactions = data.transactions.filter((item) => {
+    const date = itemDate(item)
+    return date && date >= month.start && date <= month.end
+  })
+  const income = monthTransactions.reduce((sum, item) => sum + incomeValue(item), 0)
+  const expense = monthTransactions.reduce((sum, item) => sum + expenseValue(item), 0)
+  const cashflow = income - expense
+  const budgets = currentBudgets(data, today)
+  const budgetQuery = plan.budget || (plan.topics.includes('budgets') ? plan.search : '')
+  const selectedBudget = budgetQuery
+    ? budgets.find((item) => normalized(item.name).includes(normalized(budgetQuery)))
+    : null
+  const budgetAmount = budgets.reduce((sum, item) => sum + number(item.amount), 0)
+  const budgetSpent = budgets.reduce((sum, item) => sum + item.spent, 0)
+  const upcoming = upcomingRecurring(data, today)
+  const upcomingAmount = upcoming.reduce((sum, item) => sum + number(item.amount), 0)
+  const monthlyObligations = [...active(data.debts), ...active(data.installments)]
+    .reduce((sum, item) => sum + number(item.monthly), 0)
+  const scenarioAmount = number(plan.scenarioAmount)
+
+  if (scenarioAmount > 0) {
+    const title = plan.scenarioTitle || 'Rencana pengeluaran'
+    const balanceAfter = availableBalance - scenarioAmount
+    const afterUpcoming = balanceAfter - upcomingAmount
+    const daily = selectedBudget ? dailyBudgetMetrics(selectedBudget, data, today) : null
+    const budgetAfter = selectedBudget ? selectedBudget.remaining - scenarioAmount : null
+    let verdict = 'CUKUP AMAN'
+    let reason = 'Saldo masih mencukupi berdasarkan data yang tersedia.'
+    if (scenarioAmount > availableBalance) {
+      verdict = 'BELUM AMAN'
+      reason = `Nominal rencana lebih besar ${money(scenarioAmount - availableBalance)} daripada saldo yang dihitung.`
+    } else if (selectedBudget && scenarioAmount > selectedBudget.remaining) {
+      verdict = 'BELUM AMAN'
+      reason = `Rencana ini melampaui sisa budget ${selectedBudget.name} sebesar ${money(-budgetAfter)}.`
+    } else if (afterUpcoming < 0) {
+      verdict = 'BERISIKO'
+      reason = `Saldo tidak cukup setelah menyisihkan transaksi rutin tujuh hari ke depan.`
+    } else if (daily && scenarioAmount > Math.max(daily.remainingToday, 0)) {
+      verdict = 'PERLU DIPERTIMBANGKAN'
+      reason = `Nominalnya lebih besar dari panduan tersisa budget ${selectedBudget.name} untuk hari ini.`
+    }
+
+    const impacts = [
+      `• ${selectedAccount ? `Saldo ${selectedAccount.name}` : 'Total saldo aktif'} setelah rencana: *${money(balanceAfter)}*`,
+      ...(selectedBudget ? [`• Sisa budget ${selectedBudget.name}: *${money(budgetAfter)}*`] : []),
+      ...(upcomingAmount ? [`• Perlu disisihkan dalam 7 hari: *${money(upcomingAmount)}*`] : []),
+      ...(monthlyObligations ? [`• Kewajiban utang/cicilan per bulan: *${money(monthlyObligations)}*`] : []),
+    ]
+    const suggestions = []
+    if (daily && scenarioAmount > Math.max(daily.remainingToday, 0)) {
+      suggestions.push(`Jika ingin menjaga ritme budget ${selectedBudget.name}, batas tersisa hari ini sekitar ${money(Math.max(daily.remainingToday, 0))}.`)
+    }
+    if (upcomingAmount) suggestions.push(`Sisihkan ${money(upcomingAmount)} untuk ${upcoming.length} transaksi rutin yang jatuh tempo dalam tujuh hari.`)
+    if (!selectedAccount) suggestions.push('Sebutkan akun sumber dana agar perhitungannya lebih tepat.')
+    if (!selectedBudget) suggestions.push('Sebutkan budget yang akan dipakai agar dampaknya pada batas bulanan bisa dihitung.')
+    if (!suggestions.length) suggestions.push('Jika rencana dijalankan, catat pengeluarannya ke budget yang sesuai agar panduan berikutnya tetap akurat.')
+
+    return [
+      '💡 *MYOUI • CEK RENCANA*',
+      `*${title}*\n${money(scenarioAmount)}`,
+      `*Dampaknya*\n${impacts.join('\n')}`,
+      `*Penilaian Myoui: ${verdict}*\n${reason}`,
+      `*Saran*\n${suggestions.slice(0, 3).map((item) => `• ${item}`).join('\n')}`,
+      '_Ini hanya simulasi. Belum ada transaksi yang dicatat._',
+    ].join('\n\n')
+  }
+
+  const facts = [
+    `• Total saldo aktif: *${money(totalBalance)}*`,
+    `• Arus kas bulan ini: *${money(cashflow)}*`,
+    ...(budgetAmount ? [`• Budget terpakai: ${money(budgetSpent)} dari ${money(budgetAmount)}`] : []),
+    ...(upcomingAmount ? [`• Jatuh tempo 7 hari: *${money(upcomingAmount)}*`] : []),
+    ...(monthlyObligations ? [`• Utang/cicilan per bulan: *${money(monthlyObligations)}*`] : []),
+  ]
+  const suggestions = []
+  const exceeded = budgets.filter((item) => item.remaining < 0)
+  const nearLimit = budgets.filter((item) => item.remaining >= 0 && number(item.amount) > 0 && item.spent / number(item.amount) >= 0.8)
+  if (cashflow < 0 && income > 0) suggestions.push(`Pengeluaran bulan ini melebihi pemasukan sebesar ${money(-cashflow)}. Tahan pengeluaran pilihan sampai arus kas kembali positif.`)
+  if (exceeded.length) suggestions.push(`Hentikan sementara pengeluaran dari budget yang terlampaui: ${exceeded.map((item) => item.name).join(', ')}.`)
+  else if (nearLimit.length) suggestions.push(`Perketat budget yang sudah mendekati batas: ${nearLimit.map((item) => item.name).join(', ')}.`)
+  if (upcomingAmount) suggestions.push(`Pisahkan ${money(upcomingAmount)} sekarang untuk transaksi rutin tujuh hari ke depan.`)
+  if (monthlyObligations) suggestions.push(`Sisihkan kewajiban utang dan cicilan bulanan sebesar ${money(monthlyObligations)} sebelum pengeluaran pilihan.`)
+  if (!budgets.length) suggestions.push('Buat budget untuk pengeluaran yang paling sering agar Myoui dapat menghitung batas harian.')
+  if (!suggestions.length) suggestions.push('Kondisi saat ini cukup terkendali. Pertahankan pencatatan dan periksa kembali sebelum pengeluaran besar.')
+
+  return [
+    '💡 *MYOUI • SARAN KEUANGAN*',
+    `*Kondisi yang kulihat*\n${facts.slice(0, 5).join('\n')}`,
+    `*Prioritas yang kusarankan*\n${suggestions.slice(0, 3).map((item, index) => `${index + 1}. ${item}`).join('\n')}`,
+    '_Kamu bisa menyebutkan rencana, nominal, akun, dan budget untuk simulasi yang lebih spesifik._',
   ].join('\n\n')
 }
 
@@ -349,6 +480,10 @@ function overviewAnswer(data, today) {
 }
 
 export function answerFinanceQuery(plan, data, today) {
+  if (plan.mode === 'advice' && plan.budgetView !== 'daily') {
+    const answer = financialAdviceAnswer(data, plan, today)
+    return `${answer}\n\n_Myoui • berdasarkan data FinanceMy • ${displayDate(today)}_`
+  }
   const answers = plan.topics.map((topic) => {
     if (topic === 'overview') return overviewAnswer(data, today)
     if (topic === 'accounts') return accountsAnswer(data, plan)
@@ -364,5 +499,5 @@ export function answerFinanceQuery(plan, data, today) {
   const shortened = combined.length > 3650
     ? `${combined.slice(0, 3650).replace(/\n[^\n]*$/, '')}\n\n_Buka FinanceMy untuk melihat data lainnya._`
     : combined
-  return `${shortened}\n\n_Data FinanceMy • ${displayDate(today)}_`
+  return `${shortened}\n\n_Myoui • data FinanceMy • ${displayDate(today)}_`
 }

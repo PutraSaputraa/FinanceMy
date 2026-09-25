@@ -83,16 +83,16 @@ export default function WhatsAppSettings({ user }) {
             </div> : <button type="button" className="primary-btn" onClick={createCode} disabled={busy}>{busy ? 'Membuat kode...' : 'Buat kode pasangan'}</button>}
           </>}
           {connection?.connected && <div className="wa-assistant-guide">
-            <strong>Pendamping FinanceMy siap digunakan</strong>
-            <p>Kirim catatan transaksi atau tanyakan kondisi keuanganmu langsung dari chat yang terhubung.</p>
+            <strong>Myoui siap mendampingimu</strong>
+            <p>Kirim catatan transaksi, tanyakan kondisi keuanganmu, atau minta Myoui menilai rencana pengeluaran.</p>
             <ul>
               <li>Kirim foto struk untuk dibuatkan draf</li>
-              <li>“Budget bulan ini tersisa berapa?”</li>
-              <li>“Apa saja transaksi rutinku?”</li>
-              <li>“Berapa pengeluaran makan bulan ini?”</li>
-              <li>“Tampilkan utang dan cicilanku.”</li>
+              <li>“Myoui, bagaimana kondisi keuanganku?”</li>
+              <li>“Aman tidak kalau beli sepatu Rp600.000 dari budget Jajan?”</li>
+              <li>“Berapa batas budget Makan untuk hari ini?”</li>
+              <li>“Apa yang sebaiknya kuprioritaskan bulan ini?”</li>
             </ul>
-            <p>Transaksi teks dan hasil pembacaan struk selalu menjadi draf. Periksa hasilnya, lalu balas SUBMIT untuk mencatat.</p>
+            <p>Saran dan simulasi tidak mengubah data. Transaksi teks dan hasil pembacaan struk tetap menjadi draf sampai kamu membalas SUBMIT.</p>
           </div>}
         </div>}
     <WhatsAppDrafts user={user}/>

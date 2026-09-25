@@ -84,7 +84,7 @@ const faqs = [
   ['Bagaimana cara mendapatkan akun FinanceMy?', 'Klik Dapatkan akses lalu hubungi admin melalui WhatsApp. Admin akan membantu demo, pilihan akses, dan pembuatan akun personal.'],
   ['Apakah FinanceMy dapat digunakan dari HP?', 'Ya. FinanceMy dirancang responsif untuk browser desktop, tablet, dan smartphone.'],
   ['Apakah data saya bercampur dengan pengguna lain?', 'Tidak. Setiap akun memiliki ruang data sendiri dan aksesnya dibatasi melalui Firebase Authentication serta Firestore Rules.'],
-  ['Apakah pencatatan melalui WhatsApp sudah tersedia?', 'Belum. Pencatatan melalui chat dan pembacaan nota berada dalam roadmap. Landing page menampilkannya sebagai fitur yang sedang dipersiapkan, bukan fitur aktif.'],
+  ['Apakah pencatatan melalui WhatsApp sudah tersedia?', 'Ya. Setelah chat dihubungkan dari Pengaturan, kamu dapat membuat draf transaksi lewat teks atau foto struk serta meminta saran keuangan dari Myoui berdasarkan data FinanceMy.'],
   ['Apakah saya dapat mencoba sebelum membeli?', 'Ya. Gunakan dashboard demo dari halaman login untuk mencoba alur utama tanpa membuat akun Firebase.'],
 ]
 

@@ -71,6 +71,10 @@ async function parseReceiptWithKenari(message) {
   return { ...draft, parsed: { ...draft.parsed, receipt: true } }
 }
 
+function asksForAdvice(text) {
+  return /(aman(?:kah)?|boleh(?:kah)?|sebaiknya|menurutmu|bagaimana kalau|kalau.+(?:beli|bayar)|rencana|ingin membeli|mau beli)/i.test(text)
+}
+
 async function parseWithKenari(text) {
   const today = jakartaDate()
   const content = await kenariCompletion([
@@ -78,17 +82,34 @@ async function parseWithKenari(text) {
 
 Jika pengguna menyatakan transaksi baru yang benar-benar terjadi, balas {"kind":"transaction","type":"expense|income","title":"nama singkat","amount":angka rupiah atau null,"category":"kategori","date":"YYYY-MM-DD","accountHint":"nama akun atau kosong","budgetHint":"nama budget atau kosong"}. Kategori expense: Makan & Minum, Transportasi, Belanja, Kebutuhan Rumah, Tagihan, Langganan, Hiburan, Pengeluaran Lainnya. Kategori income: Gaji, Freelance, Bonus, Refund, Pemasukan lainnya. Jangan mengarang nominal, akun, budget, atau tanggal. Jika tanggal tidak disebut, pakai hari ini. Transfer antar akun belum didukung.
 
-Jika pengguna meminta informasi, ringkasan, atau saran berdasarkan data akun FinanceMy miliknya, balas {"kind":"finance_query","topics":[...],"mode":"list|summary|advice","budgetView":"monthly|daily","periodStart":"YYYY-MM-DD atau null","periodEnd":"YYYY-MM-DD atau null","transactionType":"all|expense|income|transfer","category":"atau kosong","account":"atau kosong","search":"nama yang dicari atau kosong"}. Topik yang diizinkan: overview, accounts, budgets, debts, receivables, installments, recurring, goals, transactions. Pilih maksimal 4 topik. Gunakan accounts untuk saldo, budgets untuk budget bulan berjalan, debts untuk utang, receivables untuk piutang, installments untuk cicilan, recurring untuk transaksi rutin, goals untuk target, transactions untuk riwayat/pemasukan/pengeluaran, dan overview untuk kondisi keuangan umum. Untuk pertanyaan batas aman, rekomendasi, atau sisa budget yang boleh dipakai hari ini, gunakan topics=["budgets"], mode="advice", budgetView="daily", dan masukkan nama budget pada search. Untuk pertanyaan budget biasa gunakan budgetView="monthly". Untuk pertanyaan transaksi, terjemahkan keterangan waktu relatif menjadi periodStart dan periodEnd. Untuk nama budget, utang, jadwal, atau target tertentu, masukkan namanya pada search. Untuk transaksi tertentu, gunakan category, account, atau search.
+Jika pengguna meminta informasi, ringkasan, atau saran berdasarkan data akun FinanceMy miliknya, balas {"kind":"finance_query","topics":[...],"mode":"list|summary|advice","budgetView":"monthly|daily","scenarioAmount":angka atau null,"scenarioTitle":"nama rencana atau kosong","budget":"nama budget yang disebut atau kosong","periodStart":"YYYY-MM-DD atau null","periodEnd":"YYYY-MM-DD atau null","transactionType":"all|expense|income|transfer","category":"atau kosong","account":"nama akun yang disebut atau kosong","search":"nama data yang dicari atau kosong"}. Topik yang diizinkan: overview, accounts, budgets, debts, receivables, installments, recurring, goals, transactions. Pilih maksimal 4 topik. Gunakan accounts untuk saldo, budgets untuk budget bulan berjalan, debts untuk utang, receivables untuk piutang, installments untuk cicilan, recurring untuk transaksi rutin, goals untuk target, transactions untuk riwayat/pemasukan/pengeluaran, dan overview untuk kondisi keuangan umum.
+
+Untuk permintaan saran umum seperti kondisi keuangan, cara berhemat, atau prioritas bulan ini, gunakan mode="advice" dan topics yang relevan. Untuk rencana atau simulasi seperti “aman beli sepatu 600 ribu?”, “boleh bayar 1 juta?”, atau kalimat dengan mau/ingin/rencana/kalau, gunakan kind="finance_query", mode="advice", topics=["overview","budgets","recurring"], scenarioAmount berisi nominal, dan scenarioTitle berisi nama rencana. Rencana masa depan tidak boleh dianggap sebagai transaksi yang sudah terjadi. Isi budget dan account hanya jika pengguna menyebutkannya.
+
+Untuk pertanyaan batas aman, rekomendasi, atau sisa budget yang boleh dipakai hari ini tanpa rencana pembelian tertentu, gunakan topics=["budgets"], mode="advice", budgetView="daily", dan masukkan nama budget pada search. Untuk pertanyaan budget biasa gunakan budgetView="monthly". Untuk pertanyaan transaksi, terjemahkan keterangan waktu relatif menjadi periodStart dan periodEnd. Untuk nama budget, utang, jadwal, atau target tertentu, masukkan namanya pada search. Untuk transaksi tertentu, gunakan category, account, atau search.
 
 Jika tidak berkaitan dengan pencatatan atau data keuangan FinanceMy, balas {"kind":"unsupported"}. Pertanyaan tidak boleh dianggap sebagai transaksi.` },
     { role: 'user', content: text },
   ])
-  const intent = parseAssistantIntent(content, today)
+  let intent = parseAssistantIntent(content, today)
+  if (intent.kind === 'transaction' && asksForAdvice(text)) {
+    const parsed = intent.draft.parsed
+    intent = {
+      kind: 'finance_query',
+      plan: {
+        topics: ['overview', 'budgets', 'recurring'], mode: 'advice', budgetView: 'monthly',
+        scenarioAmount: Number(parsed.amount) || null, scenarioTitle: parsed.title || '',
+        budget: parsed.budgetHint || '', periodStart: null, periodEnd: null,
+        transactionType: 'all', category: parsed.category || '', account: parsed.accountHint || '', search: '',
+      },
+    }
+  }
   if (intent.kind === 'finance_query' && intent.plan.topics.includes('budgets')
-      && /(hari ini|harian|per hari|sehari|batas aman)/i.test(text)) {
+      && !intent.plan.scenarioAmount && /(hari ini|harian|per hari|sehari|batas aman)/i.test(text)) {
     intent.plan.budgetView = 'daily'
     intent.plan.mode = 'advice'
   }
+  if (intent.kind === 'finance_query' && asksForAdvice(text)) intent.plan.mode = 'advice'
   return intent
 }
 
@@ -127,6 +148,10 @@ async function financeData(uid, plan) {
     transactions: ['transactions'],
   }
   for (const topic of plan.topics) dependencies[topic]?.forEach((name) => required.add(name))
+  if (plan.mode === 'advice') {
+    ['accounts', 'transactions', 'budgets', 'debts', 'receivables', 'installments', 'recurringTransactions', 'goals']
+      .forEach((name) => required.add(name))
+  }
   const names = [...required]
   const snapshots = await Promise.all(names.map((name) => {
     const collection = adminDb.collection(`users/${uid}/${name}`)
@@ -249,7 +274,7 @@ export default async (request) => {
       }
       if (intent.kind === 'unsupported') {
         const draftReminder = activeStatus === 'draft' ? '\n\n_Draf transaksimu masih tersimpan. Balas SUBMIT, REVISI, atau BATAL untuk melanjutkan._' : ''
-        return finish(ref, 'handled', `💬 *PENDAMPING FINANCEMY*\n\nAku dapat membantu:\n• Mencatat transaksi\n• Memeriksa saldo dan budget\n• Melihat utang, piutang, dan cicilan\n• Melihat transaksi rutin\n• Merangkum transaksi dan target${draftReminder}`)
+        return finish(ref, 'handled', `💬 *MYOUI • ASISTEN FINANCEMY*\n\nHai, aku Myoui. Aku dapat membantu:\n• Mencatat transaksi\n• Memeriksa saldo dan budget\n• Melihat utang, piutang, dan cicilan\n• Memberikan saran berdasarkan kondisi keuanganmu\n• Menilai rencana pengeluaran sebelum dicatat${draftReminder}\n\n_Coba: “Myoui, aman tidak kalau aku beli sepatu Rp600.000 dari budget Jajan?”_`)
       }
       if (activeStatus === 'draft') {
         return finish(ref, 'handled', '⏳ *DRAF MENUNGGU KEPUTUSAN*\n\nBalas:\n• *SUBMIT* untuk mencatat\n• *REVISI* diikuti perubahan\n• *BATAL* untuk membatalkan')

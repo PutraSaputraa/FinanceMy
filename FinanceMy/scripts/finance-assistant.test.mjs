@@ -42,6 +42,9 @@ const plan = (topics, extra = {}) => ({
   topics,
   mode: 'summary',
   budgetView: 'monthly',
+  scenarioAmount: null,
+  scenarioTitle: '',
+  budget: '',
   periodStart: null,
   periodEnd: null,
   transactionType: 'all',
@@ -62,6 +65,11 @@ test('parses transaction, finance query, and unsupported intents', () => {
   assert.equal(query.plan.budgetView, 'monthly')
   const daily = parseAssistantIntent('{"kind":"finance_query","topics":["budgets"],"mode":"advice","budgetView":"daily","search":"Jajan"}', today)
   assert.equal(daily.plan.budgetView, 'daily')
+  const advice = parseAssistantIntent('{"kind":"finance_query","topics":["overview","budgets"],"mode":"advice","scenarioAmount":600000,"scenarioTitle":"Sepatu","budget":"Jajan","account":"BCA"}', today)
+  assert.equal(advice.plan.scenarioAmount, 600000)
+  assert.equal(advice.plan.scenarioTitle, 'Sepatu')
+  assert.equal(advice.plan.budget, 'Jajan')
+  assert.equal(advice.plan.account, 'BCA')
   assert.deepEqual(parseAssistantIntent('{"kind":"unsupported"}', today), { kind: 'unsupported' })
 })
 
@@ -96,6 +104,28 @@ test('recommends a daily amount for a selected budget', () => {
   assert.match(answer, /Sisa bulanan: Rp800\.000/)
 })
 
+test('assesses a planned expense without recording it', () => {
+  const answer = answerFinanceQuery(plan(['overview', 'budgets', 'recurring'], {
+    mode: 'advice', scenarioAmount: 600_000, scenarioTitle: 'Sepatu', budget: 'Jajan', account: 'BCA',
+  }), data, today)
+  assert.match(answer, /\*MYOUI • CEK RENCANA\*/)
+  assert.match(answer, /\*Sepatu\*\nRp600\.000/)
+  assert.match(answer, /Saldo BCA setelah rencana: \*Rp1\.900\.000\*/)
+  assert.match(answer, /Sisa budget Jajan: \*Rp250\.000\*/)
+  assert.match(answer, /Perlu disisihkan dalam 7 hari: \*Rp350\.000\*/)
+  assert.match(answer, /\*Penilaian Myoui: PERLU DIPERTIMBANGKAN\*/)
+  assert.match(answer, /Belum ada transaksi yang dicatat/)
+})
+
+test('gives prioritized advice from the complete financial picture', () => {
+  const answer = answerFinanceQuery(plan(['overview'], { mode: 'advice' }), data, today)
+  assert.match(answer, /\*MYOUI • SARAN KEUANGAN\*/)
+  assert.match(answer, /Total saldo aktif: \*Rp2\.750\.000\*/)
+  assert.match(answer, /Jatuh tempo 7 hari: \*Rp350\.000\*/)
+  assert.match(answer, /Utang\/cicilan per bulan: \*Rp1\.250\.000\*/)
+  assert.match(answer, /Prioritas yang kusarankan/)
+})
+
 test('answers obligations, recurring transactions, and goals from stored values', () => {
   assert.match(answerFinanceQuery(plan(['debts']), data, today), /\*Pinjaman keluarga\*\n  Sisa \*Rp1\.500\.000\*/)
   assert.match(answerFinanceQuery(plan(['receivables']), data, today), /\*Dimas\*\n  Sisa \*Rp800\.000\*/)
@@ -126,6 +156,6 @@ test('provides an overview using current month figures', () => {
   assert.match(answer, /Pemasukan  Rp3\.000\.000/)
   assert.match(answer, /Pengeluaran  Rp225\.000/)
   assert.match(answer, /\*Utang & cicilan\*\nSisa Rp7\.500\.000/)
-  assert.match(answer, /_Data FinanceMy • 23 September 2026_$/)
+  assert.match(answer, /_Myoui • data FinanceMy • 23 September 2026_$/)
   assert.ok(answer.length < 3900)
 })
