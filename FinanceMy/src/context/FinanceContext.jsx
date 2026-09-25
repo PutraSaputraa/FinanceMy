@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { addDays, format } from 'date-fns'
 import { demoAccounts, demoBudgets, demoDebtRecords, demoGoals, demoTransactions, upcomingBills } from '../constants/demoData'
 import { useAuth } from './AuthContext'
-import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, deleteRecurring as deleteRecurringRecord, deleteTransaction, markBillPaid, payRecurring as payRecurringRecord, reconcileAccount, setAccountActive, subscribeCollection, updateRecurring as saveRecurringRecord, updateTransaction } from '../services/financeService'
+import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, deleteGoal as deleteGoalRecord, deleteRecurring as deleteRecurringRecord, deleteTransaction, markBillPaid, payRecurring as payRecurringRecord, reconcileAccount, setAccountActive, subscribeCollection, updateGoal as saveGoalRecord, updateRecurring as saveRecurringRecord, updateTransaction } from '../services/financeService'
 import { budgetMonthKey, budgetsForDate, monthlyBudgets } from '../utils/budgets'
 import { buildRecurringPayment, recurringCategory, recurringDateKey, recurringDueDate } from '../utils/recurring'
 import { balanceChanges } from '../utils/transactionBalances'
@@ -317,11 +317,55 @@ export function FinanceProvider({ children }) {
     notify(item.type === 'Pemasukan rutin' ? 'Pemasukan rutin berhasil dicatat' : 'Pembayaran berhasil dicatat')
   }
 
+  const goalValues = (values, previous = null) => {
+    const name = values.name?.trim()
+    const target = Number(values.target)
+    const account = activeData.accounts.find((item) => item.id === values.accountId && item.isActive !== false)
+    if (!name || name.length > 120) throw new Error('Nama target harus berisi 1–120 karakter.')
+    if (!Number.isFinite(target) || target <= 0) throw new Error('Nominal target harus lebih dari nol.')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(values.deadline || '') || Number.isNaN(new Date(`${values.deadline}T12:00:00`).getTime())) {
+      throw new Error('Deadline target tidak valid.')
+    }
+    if (!account) throw new Error('Pilih akun tujuan yang masih aktif.')
+    const duplicate = activeData.goals.find((item) => item.id !== previous?.id && item.accountId === account.id)
+    if (duplicate) throw new Error(`Akun ${account.name} sudah dipakai oleh target ${duplicate.name}.`)
+    return {
+      name,
+      target,
+      deadline: values.deadline,
+      priority: values.priority || 'Sedang',
+      accountId: account.id,
+      accountName: account.name,
+      status: 'Aktif',
+      color: previous?.color || values.color || account.color || '#087f5b',
+      icon: previous?.icon || values.icon || 'shield',
+    }
+  }
+
   const addGoal = async (values) => {
-    const record = { ...values, target: Number(values.target || 0), saved: Number(values.saved || 0), status: 'Aktif', color: values.color || '#087f5b' }
+    const record = goalValues(values)
     if (user && !user.isDemo) await addUserRecord(user.uid, 'goals', record)
     else setDemoData((current) => ({ ...current, goals: [...current.goals, { ...record, id: crypto.randomUUID() }] }))
     notify('Target keuangan berhasil dibuat')
+  }
+
+  const editGoal = async (goalId, values) => {
+    const previous = activeData.goals.find((item) => item.id === goalId)
+    if (!previous) throw new Error('Target keuangan tidak ditemukan.')
+    const record = goalValues(values, previous)
+    if (user && !user.isDemo) await saveGoalRecord(user.uid, goalId, record)
+    else setDemoData((current) => ({
+      ...current,
+      goals: current.goals.map((item) => item.id === goalId ? { ...item, ...record, saved: undefined } : item),
+    }))
+    notify('Target keuangan berhasil diperbarui')
+  }
+
+  const removeGoal = async (goalId) => {
+    if (!activeData.goals.some((item) => item.id === goalId)) throw new Error('Target keuangan tidak ditemukan.')
+    if (user && !user.isDemo) await deleteGoalRecord(user.uid, goalId)
+    else setDemoData((current) => ({ ...current, goals: current.goals.filter((item) => item.id !== goalId) }))
+    notify('Target keuangan berhasil dihapus')
   }
 
   const addDebtRecord = async (kind, values) => {
@@ -364,6 +408,8 @@ export function FinanceProvider({ children }) {
     removeRecurring,
     recordRecurringPayment,
     addGoal,
+    editGoal,
+    removeGoal,
     addDebtRecord,
     payBill,
   }

@@ -213,6 +213,17 @@ function active(items) {
   return items.filter((item) => item.isActive !== false && normalized(item.status) !== 'lunas')
 }
 
+function linkedGoalAccount(data, goal) {
+  return data.accounts.find((account) => account.id === goal?.accountId)
+    || data.accounts.find((account) => goal?.accountName && account.name === goal.accountName)
+    || null
+}
+
+function goalSavedAmount(data, goal) {
+  const account = linkedGoalAccount(data, goal)
+  return Math.max(number(account ? account.currentBalance : goal?.saved), 0)
+}
+
 function searched(items, query, fields) {
   const needle = normalized(query)
   if (!needle) return items
@@ -328,7 +339,7 @@ function goalPlanAdviceAnswer(data, plan, today) {
     : null
   const targetAmount = number(plan.targetAmount || storedGoal?.target)
   const currentSaved = plan.currentSaved === null || plan.currentSaved === undefined
-    ? number(storedGoal?.saved) : number(plan.currentSaved)
+    ? goalSavedAmount(data, storedGoal) : number(plan.currentSaved)
   const targetDate = plan.targetDate || dateKey(storedGoal?.deadline)
   const recurringIncome = data.recurringTransactions
     .filter((item) => item.isActive !== false && normalized(item.type) === 'pemasukan rutin')
@@ -571,16 +582,18 @@ function goalsAnswer(data, plan) {
   let items = data.goals.filter((item) => normalized(item.status) !== 'selesai')
   items = searched(items, plan.search, [(item) => item.name])
   if (!items.length) return `Belum ada target keuangan aktif${plan.search ? ' yang cocok' : ''}.`
-  const saved = items.reduce((sum, item) => sum + number(item.saved), 0)
+  const saved = items.reduce((sum, item) => sum + goalSavedAmount(data, item), 0)
   const target = items.reduce((sum, item) => sum + number(item.target), 0)
   return [
     '🏁 *TARGET KEUANGAN*',
     ...limitedBlocks(items, (item) => {
       const targetValue = number(item.target)
-      const progress = targetValue ? Math.min(Math.round(number(item.saved) / targetValue * 100), 100) : 0
-      return `• *${item.name}* • ${progress}%\n  ${money(item.saved)} dari ${money(targetValue)}${item.deadline ? `\n  Target ${dateKey(item.deadline) ? displayDate(item.deadline) : item.deadline}` : ''}`
+      const itemSaved = goalSavedAmount(data, item)
+      const account = linkedGoalAccount(data, item)
+      const progress = targetValue ? Math.min(Math.round(itemSaved / targetValue * 100), 100) : 0
+      return `• *${item.name}* • ${progress}%\n  ${account ? `Saldo ${account.name}` : 'Dana tercatat'} ${money(itemSaved)} dari ${money(targetValue)}${item.deadline ? `\n  Target ${dateKey(item.deadline) ? displayDate(item.deadline) : item.deadline}` : ''}${account ? '' : '\n  ⚠️ Pilih akun tujuan melalui FinanceMy'}`
     }),
-    `*Total terkumpul*\n${money(saved)} dari ${money(target)}`,
+    `*Total saldo akun tujuan*\n${money(saved)} dari ${money(target)}`,
   ].join('\n\n')
 }
 

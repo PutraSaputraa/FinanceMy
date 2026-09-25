@@ -175,7 +175,7 @@ async function financeData(uid, plan) {
     receivables: ['receivables'],
     installments: ['installments'],
     recurring: ['recurringTransactions'],
-    goals: ['goals'],
+    goals: ['goals', 'accounts'],
     transactions: ['transactions'],
   }
   for (const topic of plan.topics) dependencies[topic]?.forEach((name) => required.add(name))

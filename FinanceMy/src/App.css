@@ -54,6 +54,27 @@ a{text-decoration:none;color:inherit}.app-shell{min-height:100vh;background:var(
 .danger-btn svg{width:16px}
 .confirm-account-action>p{margin:0;color:var(--muted);font-size:10px;line-height:1.6}
 
+.goal-explainer{padding:13px 16px;margin-bottom:14px;border-left:3px solid var(--emerald)}
+.goal-explainer strong{display:block;font-size:10px;margin-bottom:4px}
+.goal-explainer p{margin:0;color:var(--muted);font-size:8.5px;line-height:1.55}
+.goal-card-controls{display:flex;align-items:center;gap:7px}
+.goal-card-controls>em.warning{background:#fff4e4;color:var(--orange)}
+.goal-card-controls>span{display:flex;gap:4px}
+.goal-card-controls button{width:27px;height:27px;display:grid;place-items:center;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--muted)}
+.goal-card-controls button:hover{color:var(--emerald);border-color:color-mix(in srgb,var(--emerald) 45%,var(--line))}
+.goal-card-controls button.delete:hover{color:var(--red);border-color:color-mix(in srgb,var(--red) 45%,var(--line))}
+.goal-card-controls button svg{width:13px}
+.goal-account{display:flex;align-items:center;gap:8px;margin-top:14px;padding:9px 10px;border-radius:9px;background:var(--surface-2);color:var(--muted);font-size:8px}
+.goal-account>svg{width:15px;color:var(--emerald)}
+.goal-account span,.goal-account strong,.goal-account small{display:block}
+.goal-account strong{color:var(--text);font-size:9px;margin-top:2px}
+.goal-account small{color:var(--orange);margin-top:2px}
+.goal-account.missing{background:#fff8ed;color:#986925}
+.goal-account.missing>svg{color:var(--orange)}
+.goal-card .goal-value{margin-top:14px}
+
+@media(max-width:560px){.goal-card-controls{align-items:flex-end;flex-direction:column}.goal-card-controls>span{align-self:flex-end}.goal-card header{align-items:start}}
+
 /* Admin */
 .admin-auth{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg)}
 .admin-loader{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}

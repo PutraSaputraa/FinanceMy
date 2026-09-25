@@ -25,7 +25,7 @@ const data = {
     { name: 'Internet', type: 'Tagihan', amount: 350_000, frequency: 'Bulanan', nextDate: '2026-09-25', accountName: 'BCA', isActive: true },
   ],
   goals: [
-    { name: 'Dana darurat', saved: 4_000_000, target: 10_000_000, deadline: '2027-09-01', status: 'Aktif' },
+    { name: 'Dana darurat', accountId: 'a1', saved: 4_000_000, target: 10_000_000, deadline: '2027-09-01', status: 'Aktif' },
   ],
   debts: [
     { name: 'Pinjaman keluarga', remaining: 1_500_000, monthly: 500_000, due: '2026-12-15', status: 'Aktif' },
@@ -177,7 +177,7 @@ test('answers obligations, recurring transactions, and goals from stored values'
   assert.match(answerFinanceQuery(plan(['receivables']), data, today), /\*Dimas\*\n  Sisa \*Rp800\.000\*/)
   assert.match(answerFinanceQuery(plan(['installments']), data, today), /\*Laptop\*\n  Sisa \*Rp6\.000\.000\*/)
   assert.match(answerFinanceQuery(plan(['recurring']), data, today), /\*Internet\*\n  Rp350\.000 • Bulanan/)
-  assert.match(answerFinanceQuery(plan(['goals']), data, today), /\*Dana darurat\* • 40%\n  Rp4\.000\.000 dari Rp10\.000\.000/)
+  assert.match(answerFinanceQuery(plan(['goals']), data, today), /\*Dana darurat\* • 25%\n  Saldo BCA Rp2\.500\.000 dari Rp10\.000\.000/)
 })
 
 test('summarizes and lists filtered transactions for the requested period', () => {

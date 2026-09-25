@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { budgetMonthKey, budgetPeriodKey } from '../utils/budgets'
 import { buildRecurringPayment, recurringDueDate } from '../utils/recurring'
@@ -113,6 +113,18 @@ export async function addUserRecord(userId, collectionName, values) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+}
+
+export async function updateGoal(userId, goalId, values) {
+  return updateDoc(doc(db, 'users', userId, 'goals', goalId), {
+    ...values,
+    saved: deleteField(),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteGoal(userId, goalId) {
+  return deleteDoc(doc(db, 'users', userId, 'goals', goalId))
 }
 
 export async function completeOnboarding(userId, values) {

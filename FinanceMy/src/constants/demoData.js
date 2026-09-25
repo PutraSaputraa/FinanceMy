@@ -53,9 +53,9 @@ export const upcomingBills = [
 ]
 
 export const demoGoals = [
-  { id: 'goal-emergency', name: 'Dana darurat', target: 30000000, saved: 12600000, deadline: 'Des 2027', color: '#087f5b', priority: 'Prioritas tinggi', icon: 'shield' },
-  { id: 'goal-laptop', name: 'Laptop kerja', target: 18000000, saved: 9900000, deadline: 'Feb 2027', color: '#2271b3', priority: 'Prioritas sedang', icon: 'laptop' },
-  { id: 'goal-home', name: 'Uang muka rumah', target: 150000000, saved: 32500000, deadline: 'Agu 2030', color: '#8b5cf6', priority: 'Jangka panjang', icon: 'home' },
+  { id: 'goal-emergency', name: 'Dana darurat', target: 30000000, accountId: 'bsi', accountName: 'BSI', deadline: '2027-12-31', color: '#087f5b', priority: 'Tinggi', icon: 'shield' },
+  { id: 'goal-laptop', name: 'Laptop kerja', target: 18000000, accountId: 'blu', accountName: 'Blu', deadline: '2027-02-28', color: '#2271b3', priority: 'Sedang', icon: 'laptop' },
+  { id: 'goal-home', name: 'Uang muka rumah', target: 150000000, accountId: 'cash', accountName: 'Tunai', deadline: '2030-08-31', color: '#8b5cf6', priority: 'Rendah', icon: 'home' },
 ]
 
 export const demoDebtRecords = {
