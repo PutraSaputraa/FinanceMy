@@ -4,14 +4,17 @@ import { format } from 'date-fns'
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from 'lucide-react'
 import { useFinance } from '../../context/FinanceContext'
 import { budgetIdForTransaction, budgetsForDate } from '../../utils/budgets'
-
-const incomeCategories = ['Gaji', 'Freelance', 'Bonus', 'Refund', 'Pemasukan lainnya']
-const expenseCategories = ['Makan & Minum', 'Transportasi', 'Belanja', 'Kebutuhan Rumah', 'Tagihan', 'Langganan', 'Hiburan', 'Pengeluaran Lainnya']
+import { categoryNames } from '../../utils/taxonomy'
+import '../../pages/settings/category-settings.css'
 
 export default function TransactionForm({ onDone, transaction }) {
   const [type, setType] = useState(transaction?.type || 'expense')
   const [submitError, setSubmitError] = useState('')
-  const { accounts, budgetRecords, addDemoTransaction, editTransaction } = useFinance()
+  const { accounts, budgetRecords, categories, tags, addDemoTransaction, editTransaction } = useFinance()
+  const incomeCategories = categoryNames(categories, 'income')
+  const expenseCategories = categoryNames(categories, 'expense')
+  const [selectedTags, setSelectedTags] = useState(transaction?.tags || [])
+  const availableTags = [...new Set([...tags.filter((tag) => tag.isActive !== false).map((tag) => tag.name), ...selectedTags])]
   const transactionTime = transaction?.transactionDate?.toDate?.() || (transaction?.transactionDate instanceof Date ? transaction.transactionDate : null)
   const sourceId = transaction?.accountId || accounts.find((account) => account.name === transaction?.account)?.id
   const destinationId = transaction?.destinationAccountId || accounts.find((account) => account.name === transaction?.destinationAccount)?.id
@@ -24,7 +27,7 @@ export default function TransactionForm({ onDone, transaction }) {
       amount: transaction?.amount || '',
       accountId: sourceId || availableAccounts[0]?.id || '',
       destinationAccountId: destinationId || '',
-      category: transaction?.category || transaction?.categoryName || expenseCategories[0],
+      category: transaction?.category || transaction?.categoryName || (type === 'income' ? incomeCategories[0] : expenseCategories[0]),
       budgetId: transaction ? budgetIdForTransaction(transaction, initialBudgets) || '' : '',
       date: initialDate,
       time: transaction?.time || (transactionTime ? format(transactionTime, 'HH:mm') : format(new Date(), 'HH:mm')),
@@ -40,10 +43,11 @@ export default function TransactionForm({ onDone, transaction }) {
   useEffect(() => {
     if (chosenBudgetId && !availableBudgets.some((budget) => budget.id === chosenBudgetId)) setValue('budgetId', '')
   }, [availableBudgets, chosenBudgetId, setValue])
-  const categories = type === 'income' ? incomeCategories : expenseCategories
-  const categoryOptions = transaction?.category && !categories.includes(transaction.category)
-    ? [transaction.category, ...categories]
-    : categories
+  const categoryOptions = categoryNames(categories, type, transaction?.type === type ? transaction?.category || transaction?.categoryName : '')
+  const selectedCategory = watch('category')
+  useEffect(() => {
+    if (type !== 'transfer' && categoryOptions.length && !categoryOptions.includes(selectedCategory)) setValue('category', categoryOptions[0])
+  }, [type, categoryOptions, selectedCategory, setValue])
   const changeType = (nextType) => {
     setType(nextType)
     if (nextType !== 'transfer') setValue('category', nextType === 'income' ? incomeCategories[0] : expenseCategories[0])
@@ -56,6 +60,7 @@ export default function TransactionForm({ onDone, transaction }) {
     const record = {
       ...values,
       type,
+      tags: selectedTags,
       title: type === 'transfer' ? `Transfer ke ${destinationName}` : values.title.trim(),
       category: type === 'transfer' ? 'Transfer' : values.category,
       destinationAccountId: type === 'transfer' ? values.destinationAccountId : null,
@@ -83,6 +88,7 @@ export default function TransactionForm({ onDone, transaction }) {
       {type === 'expense' && <label>Label<select {...register('needType')}><option value="wajib">Wajib</option><option value="kebutuhan">Kebutuhan</option><option value="keinginan">Keinginan</option><option value="tidak-terduga">Tidak terduga</option></select></label>}
       {type === 'transfer' && <label>Biaya admin<input type="number" min="0" {...register('adminFee', { min: { value: 0, message: 'Biaya admin tidak valid.' } })}/>{errors.adminFee && <small className="field-error">{errors.adminFee.message}</small>}</label>}
       <label className="full">Catatan<textarea rows="3" placeholder="Opsional" {...register('note')}/></label>
+      <fieldset className="transaction-tags full"><legend>Tag (opsional)</legend><div>{availableTags.map((tag) => <label key={tag}><input type="checkbox" checked={selectedTags.includes(tag)} onChange={(event) => setSelectedTags((current) => event.target.checked ? [...current, tag] : current.filter((item) => item !== tag))}/>{tag}</label>)}</div><small>{availableTags.length ? 'Pilih beberapa tag untuk mengelompokkan transaksi.' : 'Tambahkan tag melalui Pengaturan → Kategori & tag.'}</small></fieldset>
     </div>
     {submitError && <p className="form-feedback error" role="alert">{submitError}</p>}
     <div className="form-actions"><button type="button" className="secondary-btn" onClick={onDone} disabled={isSubmitting}>Batal</button><button className="primary-btn" disabled={isSubmitting}>{isSubmitting ? 'Menyimpan...' : transaction ? 'Simpan perubahan' : 'Simpan transaksi'}</button></div>

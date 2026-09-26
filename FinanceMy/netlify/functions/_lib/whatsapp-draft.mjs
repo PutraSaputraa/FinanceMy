@@ -1,5 +1,6 @@
-export const expenseCategories = ['Makan & Minum', 'Transportasi', 'Belanja', 'Kebutuhan Rumah', 'Tagihan', 'Langganan', 'Hiburan', 'Pengeluaran Lainnya']
-export const incomeCategories = ['Gaji', 'Freelance', 'Bonus', 'Refund', 'Pemasukan lainnya']
+import { categoryNames, defaultCategories } from '../../../src/utils/taxonomy.js'
+export const expenseCategories = categoryNames(defaultCategories, 'expense')
+export const incomeCategories = categoryNames(defaultCategories, 'income')
 
 function jsonObject(value) {
   if (typeof value !== 'string') return null
@@ -18,15 +19,15 @@ function validDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
-export function parseWhatsAppDraft(content, fallbackDate) {
+export function parseWhatsAppDraft(content, fallbackDate, choices = {}) {
   const result = jsonObject(content)
   if (result?.kind === 'ignore') return { status: 'ignored', parsed: null }
 
   const type = result?.type === 'income' ? 'income' : 'expense'
-  const categories = type === 'income' ? incomeCategories : expenseCategories
+  const categories = choices[type]?.length ? choices[type] : type === 'income' ? incomeCategories : expenseCategories
   const amount = Number(result?.amount)
   const title = typeof result?.title === 'string' ? result.title.trim().slice(0, 120) : ''
-  const category = categories.includes(result?.category) ? result.category : categories.at(-1)
+  const category = categories.find((item) => item.toLocaleLowerCase('id-ID') === String(result?.category || '').trim().toLocaleLowerCase('id-ID')) || categories.find((item) => /lainnya$/i.test(item)) || categories[0]
 
   return {
     status: 'draft',

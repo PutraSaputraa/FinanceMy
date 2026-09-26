@@ -25,7 +25,7 @@ export default function TransactionsPage() {
   const closeAdd = () => { setLocalOpen(false); setParams({}) }
   const filtered = useMemo(() => transactions.filter((transaction) =>
     (type === 'all' || transaction.type === type) &&
-    `${transaction.title} ${transaction.category} ${transaction.account}`.toLowerCase().includes(query.toLowerCase()),
+    `${transaction.title} ${transaction.category} ${transaction.account} ${(transaction.tags || []).join(' ')}`.toLowerCase().includes(query.toLowerCase()),
   ), [transactions, query, type])
   const transactionBudgetName = (transaction) => {
     const date = toDate(transaction.transactionDate || transaction.date)

@@ -13,7 +13,7 @@ export default function TransactionItem({ transaction, budgetName, onEdit, onDel
 
   return <div className="transaction-item">
     <div className={`transaction-icon ${transaction.type}`}><Icon size={19}/></div>
-    <div className="transaction-main"><strong>{transaction.title}</strong><span>{transaction.category} <i/> {transaction.account}{transaction.type === 'transfer' && transaction.destinationAccountName ? ` → ${transaction.destinationAccountName}` : transaction.type === 'transfer' && transaction.destinationAccount ? ` → ${transaction.destinationAccount}` : ''}{budgetName && <> <i/> Budget: {budgetName}</>}</span></div>
+    <div className="transaction-main"><strong>{transaction.title}</strong><span>{transaction.category} <i/> {transaction.account}{transaction.type === 'transfer' && transaction.destinationAccountName ? ` → ${transaction.destinationAccountName}` : transaction.type === 'transfer' && transaction.destinationAccount ? ` → ${transaction.destinationAccount}` : ''}{budgetName && <> <i/> Budget: {budgetName}</>}{transaction.tags?.length > 0 && <> <i/> {transaction.tags.map((tag) => `#${tag}`).join(' \u00b7 ')}</>}</span></div>
     <div className="transaction-date">{formatDate(transaction.date, 'd MMM yyyy')}</div>
     <div className={`transaction-amount ${transaction.type}`}><strong>{prefix}{formatCurrency(transaction.amount)}</strong><span><DirectionIcon/>{label}</span></div>
     {(onEdit || onDelete) && <div className="transaction-actions">

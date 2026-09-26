@@ -4,7 +4,7 @@ import { auth } from '../firebase/config'
 import { loginUser, logoutUser, resetPassword } from '../services/authService'
 
 const AuthContext = createContext(null)
-const demoUser = { uid: 'demo-user', displayName: 'Raka Pratama', email: 'raka@financemy.id', isDemo: true }
+const demoUser = { uid: 'demo-user', displayName: 'Rakabooming', email: 'raka@financemy.id', isDemo: true }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => sessionStorage.getItem('financemy-demo') ? demoUser : null)

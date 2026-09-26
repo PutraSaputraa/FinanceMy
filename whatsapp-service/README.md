@@ -47,3 +47,13 @@ WA_CONNECTOR_KEY=<kunci-acak-yang-sama-dengan-Netlify>
 Atur `WA_CONNECTOR_KEY` yang sama pada environment Netlify untuk **Functions**, bukan di `netlify.toml` atau kode frontend. Setelah mengubah environment, deploy ulang fungsi Netlify dan restart layanan VPS. Jangan bagikan nilai kunci di chat atau commit ke Git.
 
 Simpan `KENARI_API_KEY` sebagai secret pada environment Netlify konteks Production. Model bawaan untuk tahap awal adalah `step-3-7-flash:free`; model lain dapat dipilih lewat `KENARI_MODEL`. Setelah secret tersimpan, deploy ulang fungsi. Pesan keuangan dibalas sebagai draf di chat dan juga terlihat di **Pengaturan > WhatsApp**. Pengguna dapat membalas `REVISI akun BCA`, `REVISI nominal 30000`, `SUBMIT`, atau `BATAL`. Hanya satu draf aktif per akun di chat; draf lain tetap bisa ditinjau di web. `SUBMIT` hanya diterima bila nama, nominal, tanggal, dan akun sumber dana jelas. Saldo baru berubah setelah `SUBMIT` atau pengguna menekan **Catat transaksi** di web.
+
+## Pengingat dan ringkasan bulanan
+
+Konektor juga memeriksa `whatsapp-notifications` setiap menit setelah WhatsApp siap. Endpoint otomatis memakai origin dan direktori yang sama dengan `WA_INGEST_ENDPOINT`. Untuk alamat khusus, isi `WA_NOTIFICATION_ENDPOINT` dengan URL HTTPS. Kunci `WA_CONNECTOR_KEY` tetap sama.
+
+Deploy fungsi Netlify terbaru sebelum memperbarui/restart konektor. Pengguna mengaktifkan ringkasan bulanan dan/atau pengingat rutin melalui **Pengaturan > WhatsApp**; keduanya nonaktif secara bawaan. Pesan dikirim mulai 09.00 sampai sebelum 21.00 WIB. Ringkasan bulan sebelumnya tersedia tanggal 1–3, sementara pengingat rutin mengikuti H-7/H-3/hari H yang dipilih pengguna.
+
+Status pengiriman disimpan di Firestore dengan lease lima menit dan di `notifications-sent.jsonl` pada direktori sesi VPS (izin `0600`). Pertahankan file itu saat memperbarui layanan. Pesan yang sudah masuk log tidak dikirim ulang walaupun ACK ke Netlify gagal atau layanan restart. Jika proses mati persis sesudah WhatsApp menerima pesan sebelum log disimpan, masih mungkin terjadi duplikasi; protokol ini tidak menjamin exactly-once. Jangan menjalankan dua konektor untuk sesi WhatsApp yang sama.
+
+Balasan `detail` menampilkan rincian laporan terakhir tanpa mengubah atau menghapus draf transaksi. Semua uji di `npm test` menggunakan pengiriman palsu dan tidak menghubungi WhatsApp nyata.

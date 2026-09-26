@@ -6,13 +6,16 @@ import { addAccount, addBudget, addUserRecord, createTransaction, deleteBudget, 
 import { budgetMonthKey, budgetsForDate, monthlyBudgets } from '../utils/budgets'
 import { buildRecurringPayment, recurringCategory, recurringDateKey, recurringDueDate } from '../utils/recurring'
 import { balanceChanges } from '../utils/transactionBalances'
+import { categoryNames, mergeCategories, taxonomyRecord } from '../utils/taxonomy'
+import { createTaxonomyRecord, saveUserSettings, setTaxonomyActive } from '../services/financeService'
 
 const FinanceContext = createContext(null)
-const collectionKeys = ['accounts', 'transactions', 'budgets', 'bills', 'recurringTransactions', 'goals', 'debts', 'receivables', 'installments']
+const collectionKeys = ['accounts', 'transactions', 'budgets', 'bills', 'recurringTransactions', 'goals', 'debts', 'receivables', 'installments', 'categories', 'tags', 'settings']
 
 function emptyFirebaseData(ownerUid = null) {
   return {
     ownerUid,
+    categories: [], tags: [], settings: [],
     accounts: [],
     transactions: [],
     budgets: [],
@@ -29,6 +32,7 @@ function emptyFirebaseData(ownerUid = null) {
 
 function initialDemoData() {
   return {
+    categories: [], tags: [], settings: [],
     accounts: demoAccounts,
     transactions: demoTransactions,
     budgets: demoBudgets,
@@ -134,6 +138,7 @@ export function FinanceProvider({ children }) {
       subscribeCollection(userId, 'debts', (data) => update('debts', data), undefined, fail('debts')),
       subscribeCollection(userId, 'receivables', (data) => update('receivables', data), undefined, fail('receivables')),
       subscribeCollection(userId, 'installments', (data) => update('installments', data), undefined, fail('installments')),
+      ...['categories', 'tags', 'settings'].map((key) => subscribeCollection(userId, key, (data) => update(key, data), undefined, fail(key))),
     ]
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe())
   }, [user])
@@ -141,6 +146,27 @@ export function FinanceProvider({ children }) {
   const notify = (message, tone = 'success') => {
     setToast({ message, tone })
     window.setTimeout(() => setToast(null), 3000)
+  }
+
+  const categories = mergeCategories(activeData.categories)
+  const addTaxonomy = async (kind, values) => {
+    const key = kind === 'tag' ? 'tags' : 'categories'
+    const record = taxonomyRecord(values, kind === 'tag' ? activeData.tags : categories, kind)
+    if (!isDemo) await createTaxonomyRecord(user.uid, key, record)
+    else setDemoData((current) => ({ ...current, [key]: [...current[key], record] }))
+    notify(kind === 'tag' ? 'Tag berhasil ditambahkan' : 'Kategori berhasil ditambahkan')
+  }
+  const toggleTaxonomy = async (kind, record, isActive) => {
+    const key = kind === 'tag' ? 'tags' : 'categories'
+    if (kind !== 'tag' && !isActive && categoryNames(categories, record.type).length <= 1) throw new Error('Sisakan minimal satu kategori aktif untuk jenis ini.')
+    if (!isDemo) await setTaxonomyActive(user.uid, key, record, isActive)
+    else setDemoData((current) => ({ ...current, [key]: [...current[key].filter((item) => item.id !== record.id), { ...record, isActive }] }))
+    notify(isActive ? 'Berhasil diaktifkan' : 'Berhasil dinonaktifkan')
+  }
+  const saveAssistantSettings = async (values) => {
+    if (!isDemo) await saveUserSettings(user.uid, 'assistant', values)
+    else setDemoData((current) => ({ ...current, settings: [...current.settings.filter((item) => item.id !== 'assistant'), { id: 'assistant', ...values }] }))
+    notify('Pengaturan asisten tersimpan')
   }
 
   const addDemoTransaction = async (values) => {
@@ -387,6 +413,11 @@ export function FinanceProvider({ children }) {
 
   const value = {
     ...activeData,
+    categories,
+    assistantSettings: activeData.settings.find((item) => item.id === 'assistant') || {},
+    addTaxonomy,
+    toggleTaxonomy,
+    saveAssistantSettings,
     budgets: monthlyBudgets(activeData.budgets, activeData.transactions, today),
     budgetRecords: activeData.budgets,
     loading,

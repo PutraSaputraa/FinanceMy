@@ -4,8 +4,7 @@ import { useFinance } from '../../context/FinanceContext'
 import { budgetsForDate } from '../../utils/budgets'
 import { approveWhatsAppDraft, dismissWhatsAppDraft, getWhatsAppDrafts } from '../../services/whatsappDraftService'
 
-const incomeCategories = ['Gaji', 'Freelance', 'Bonus', 'Refund', 'Pemasukan lainnya']
-const expenseCategories = ['Makan & Minum', 'Transportasi', 'Belanja', 'Kebutuhan Rumah', 'Tagihan', 'Langganan', 'Hiburan', 'Pengeluaran Lainnya']
+import { categoryNames } from '../../utils/taxonomy'
 
 function jakartaToday() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
@@ -33,7 +32,9 @@ function initialValues(draft, accounts) {
 }
 
 export default function WhatsAppDrafts({ user }) {
-  const { accounts, budgetRecords, notify } = useFinance()
+  const { accounts, budgetRecords, categories, notify } = useFinance()
+  const incomeCategories = categoryNames(categories, 'income')
+  const expenseCategories = categoryNames(categories, 'expense')
   const uid = user?.uid
   const isDemo = user?.isDemo
   const [drafts, setDrafts] = useState([])
@@ -102,7 +103,7 @@ export default function WhatsAppDrafts({ user }) {
         <label>Nominal (Rp)<input type="number" min="1" required value={form.amount} onChange={(event) => change('amount', event.target.value)}/></label>
         <label className="full">Nama transaksi<input required maxLength="120" value={form.title} onChange={(event) => change('title', event.target.value)}/></label>
         <label>Akun<select required value={form.accountId} onChange={(event) => change('accountId', event.target.value)}><option value="">Pilih akun</option>{accounts.filter((account) => account.isActive !== false).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-        <label>Kategori<select value={form.category} onChange={(event) => change('category', event.target.value)}>{(form.type === 'income' ? incomeCategories : expenseCategories).map((category) => <option key={category}>{category}</option>)}</select></label>
+        <label>Kategori<select value={form.category} onChange={(event) => change('category', event.target.value)}>{categoryNames(categories, form.type, selected.parsed?.type === form.type ? selected.parsed?.category : '').map((category) => <option key={category}>{category}</option>)}</select></label>
         {form.type === 'expense' && availableBudgets.length > 0 && <label>Budget (opsional)<select value={form.budgetId} onChange={(event) => change('budgetId', event.target.value)}><option value="">Tanpa budget</option>{availableBudgets.map((budget) => <option key={budget.id} value={budget.id}>{budget.name}</option>)}</select></label>}
         <label>Tanggal<input type="date" required value={form.date} onChange={(event) => setForm((current) => ({ ...current, date: event.target.value, budgetId: '' }))}/></label>
         <label>Waktu<input type="time" required value={form.time} onChange={(event) => change('time', event.target.value)}/></label>

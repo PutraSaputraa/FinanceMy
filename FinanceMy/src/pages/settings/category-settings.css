@@ -1,0 +1,18 @@
+.taxonomy-toolbar{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+.taxonomy-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.taxonomy-tabs button{padding:10px 13px;min-height:42px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--muted);font:inherit;font-size:12px}
+.taxonomy-tabs button[aria-pressed=true]{color:var(--emerald);background:var(--emerald-soft);border-color:var(--emerald)}
+.taxonomy-help{font-size:12px;color:var(--muted);line-height:1.6;margin:18px 0 8px}
+.taxonomy-list>label{display:grid;grid-template-columns:10px minmax(0,1fr) 24px;gap:14px;align-items:center;padding:17px 3px;border-bottom:1px solid var(--line);cursor:pointer}
+.taxonomy-list i{width:10px;height:10px;border-radius:50%}
+.taxonomy-list strong{display:block;font-size:13px;overflow-wrap:anywhere}
+.taxonomy-list small{display:block;font-size:11px;color:var(--muted);margin-top:5px}
+.taxonomy-list input{width:18px;height:18px;accent-color:var(--emerald)}
+.taxonomy-list .inactive strong{color:var(--muted)}
+.transaction-tags{border:0;padding:0;margin:0;min-width:0}
+.transaction-tags legend{font-size:12px;margin-bottom:8px}
+.transaction-tags>div{display:flex;gap:8px;flex-wrap:wrap}
+.finance-form .transaction-tags label{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;overflow-wrap:anywhere;max-width:100%}
+.finance-form .transaction-tags input{width:16px;min-height:16px;height:16px;accent-color:var(--emerald);margin:0}
+.transaction-tags small{display:block;margin-top:7px;color:var(--muted)}
+@media(max-width:480px){.taxonomy-toolbar{align-items:stretch}.taxonomy-toolbar>.primary-btn{width:100%;justify-content:center}.taxonomy-tabs{width:100%}.taxonomy-tabs button{flex:1;padding:10px 7px}.settings-panel{min-width:0}}

@@ -93,10 +93,10 @@ export function extractGoalPlanHints(text) {
   }
 }
 
-export function parseAssistantIntent(content, fallbackDate) {
+export function parseAssistantIntent(content, fallbackDate, categories) {
   const result = jsonObject(content)
   if (result?.kind === 'transaction') {
-    return { kind: 'transaction', draft: parseWhatsAppDraft(JSON.stringify(result), fallbackDate) }
+    return { kind: 'transaction', draft: parseWhatsAppDraft(JSON.stringify(result), fallbackDate, categories) }
   }
   if (result?.kind !== 'finance_query') return { kind: 'unsupported' }
 

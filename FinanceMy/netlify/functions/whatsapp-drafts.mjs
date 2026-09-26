@@ -1,6 +1,6 @@
 import { adminAuth, adminDb, response as jsonResponse } from './_lib/firebase-admin.mjs'
 import { dismissDraft, DraftActionError, recordDraft } from './_lib/whatsapp-draft-actions.mjs'
-import { expenseCategories, incomeCategories } from './_lib/whatsapp-draft.mjs'
+import { userCategories } from './_lib/user-categories.mjs'
 
 class RequestError extends Error {
   constructor(status, message) {
@@ -35,7 +35,7 @@ function validDate(value) {
 function validTime(value) { return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) }
 function validId(value) { return typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value) }
 
-function transactionInput(body) {
+function transactionInput(body, choices, retained) {
   const values = body?.values
   const type = values?.type
   const title = typeof values?.title === 'string' ? values.title.trim() : ''
@@ -47,7 +47,7 @@ function transactionInput(body) {
   const time = values?.time
   const needType = values?.needType || 'kebutuhan'
   const note = typeof values?.note === 'string' ? values.note.trim() : ''
-  const categories = type === 'income' ? incomeCategories : expenseCategories
+  const categories = [...(choices[type] || []), ...(retained?.type === type ? [retained.category] : [])]
   if (!['income', 'expense'].includes(type) || !title || title.length > 120
       || !Number.isSafeInteger(amount) || amount <= 0 || amount > 1_000_000_000_000
       || !validId(accountId) || !categories.includes(category)
@@ -91,7 +91,10 @@ export default async (request) => {
     const draftId = body?.draftId
     if (typeof draftId !== 'string' || !/^[a-f0-9]{64}$/.test(draftId)) throw new RequestError(400, 'ID draf tidak valid.')
     if (body.action === 'dismiss') return await dismiss(uid, draftId)
-    if (body.action === 'approve') return await approve(uid, draftId, transactionInput(body))
+    if (body.action === 'approve') {
+      const [categories, draft] = await Promise.all([userCategories(adminDb, uid), adminDb.doc(`users/${uid}/whatsappMessages/${draftId}`).get()])
+      return await approve(uid, draftId, transactionInput(body, categories, draft.data()?.parsed))
+    }
     return response(400, { error: 'Aksi tidak dikenal.' })
   } catch (error) {
     if (error instanceof RequestError || error instanceof DraftActionError) return response(error.status, { error: error.message })

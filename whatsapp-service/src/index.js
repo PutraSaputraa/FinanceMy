@@ -6,6 +6,7 @@ import whatsapp from 'whatsapp-web.js'
 import { createDelivery } from './delivery.js'
 import { createInbox } from './inbox.js'
 import { createMediaStore } from './media-store.js'
+import { createNotifications } from './notifications.js'
 import { getMessageId, resolveSenderPhone, restoreSerializedMessageId } from './message-identity.js'
 import { claimPairingCode, pairingCodeFromMessage } from './pairing.js'
 
@@ -26,11 +27,13 @@ const client = new Client({
   },
 })
 const delivery = createDelivery(inbox, sessionPath, fetch, (chatId, text) => client.sendMessage(chatId, text), mediaStore)
+const notifications = createNotifications(sessionPath, (chatId, text) => client.sendMessage(chatId, text))
 
 let stopping = false
 const stop = async (code) => {
   if (stopping) return
   stopping = true
+  notifications.stop()
   try {
     await client.destroy()
   } catch (error) {
@@ -59,6 +62,7 @@ client.on('authenticated', () => console.log('WhatsApp terautentikasi. Menunggu 
 client.on('ready', () => {
   console.log(`WhatsApp siap menerima pesan. Antrean tersimpan: ${inbox.count}.`)
   delivery.start()
+  notifications.start()
 })
 client.on('auth_failure', (message) => {
   console.error('Autentikasi WhatsApp gagal:', message)

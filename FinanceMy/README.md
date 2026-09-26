@@ -77,6 +77,40 @@ Transaksi rutin adalah jadwal dan pengingat, bukan pencatatan otomatis. Setiap j
 
 Tombol **Bayar** (atau **Terima** untuk pemasukan rutin) meminta konfirmasi nominal dan akun. Untuk pengeluaran, pengguna juga dapat memilih budget atau Tanpa budget. Setelah dikonfirmasi, aplikasi membuat transaksi biasa, memperbarui saldo dan budget yang dipilih, lalu memajukan jatuh tempo satu periode. Perubahan ini dilakukan bersama dalam satu transaksi Firestore dengan identitas unik per periode untuk mencegah pencatatan ganda. Periode yang belum dibayar tidak dilewati otomatis. Tombol **Hapus** menghentikan jadwal serta pengingat berikutnya, tetapi riwayat transaksi tetap tersimpan. Pengingat di aplikasi bukan notifikasi push saat aplikasi tertutup.
 
+## Kategori dan tag pengguna
+
+**Pengaturan > Kategori & tag** menyediakan kategori pengeluaran, kategori pemasukan, dan tag. Pengguna dapat menambah nama dan warna serta menonaktifkan atau mengaktifkan kembali entri. Nama duplikat ditolak tanpa membedakan kapitalisasi dan spasi berlebih. Kategori bawaan dimuat tanpa menulis data awal ke Firestore; pengaturan aktifnya disimpan per pengguna. Riwayat kategori/tag pada transaksi lama tetap tersimpan setelah dinonaktifkan.
+
+Kategori aktif digunakan oleh form transaksi, jadwal rutin, draf WhatsApp, dan parser Myoui. Transaksi mendukung beberapa tag dan pencarian berdasarkan tag. Kategori disimpan di `users/{uid}/categories`, tag di `users/{uid}/tags`, dan pilihan tag disimpan pada transaksi. Perubahan demo hanya berlaku selama sesi aplikasi.
+
+## Ringkasan bulanan dan pengingat WhatsApp
+
+Aktifkan masing-masing fitur melalui **Pengaturan > WhatsApp > Pengingat & laporan dari Myoui** setelah menghubungkan chat. Keduanya awalnya nonaktif. Preferensi tersimpan di `users/{uid}/settings/assistant`.
+
+- **Ringkasan bulanan:** satu pesan singkat tanggal 1 mulai 09.00 WIB untuk bulan kalender sebelumnya, dengan kesempatan pengiriman susulan sampai tanggal 3 jika konektor sempat terputus. Tidak dikirim bila tidak ada transaksi relevan. Pesan memuat pemasukan, pengeluaran bersih, selisih, satu temuan, dan satu pengeluaran rutin terdekat dalam tujuh hari.
+- **Pengingat rutin:** pilihan H-7 (bawaan), H-3, atau hari jatuh tempo. Satu pengingat per jadwal dan tanggal jatuh tempo, termasuk pemasukan rutin. Mengubah waktu pengingat tidak mengulang pesan untuk periode yang sama. Jadwal yang sudah dibayar/dihentikan sebelum pengiriman tidak diingatkan lagi. Pengingat yang terlewat satu hari penuh tidak dikirim sebagai pesan kedaluwarsa.
+- Pesan dikirim hanya pada 09.00–20.59 WIB melalui konektor VPS yang aktif, tanpa perlu membuka aplikasi. Saldo dan transaksi tidak diubah oleh pengingat.
+- Balas **detail** / **rincian laporan** untuk rincian bulan dari laporan terakhir yang diterima; jika belum pernah menerima laporan, digunakan bulan sebelumnya. **Laporan bulanan** meminta ringkasan bulan sebelumnya. Draf transaksi yang sedang menunggu tetap tersimpan. Respons ini tidak memerlukan model AI.
+- **Laporan > Ringkasan bulanan Myoui** menyediakan pemilihan bulan, pratinjau pesan, dan rincian kategori. Angka dihitung ulang dari transaksi yang tersimpan. Transfer antar-akun dikecualikan, biaya admin transfer dihitung sebagai pengeluaran, refund mengurangi pengeluaran, dan rekonsiliasi saldo dikecualikan. Selisih bukan saldo/tabungan. Perbandingan tidak dibuat tanpa data pengeluaran bulan sebelumnya.
+
+### Aktivasi di produksi
+
+1. Deploy `firestore.rules` terbaru agar koleksi tag dapat dibaca/ditulis oleh pemilik akun.
+2. Deploy frontend dan Netlify Functions, termasuk `whatsapp-notifications`. Endpoint menggunakan `WA_CONNECTOR_KEY` yang sudah ada.
+3. Perbarui kode `whatsapp-service` di VPS dan restart layanan. Endpoint pengingat otomatis diturunkan dari `WA_INGEST_ENDPOINT`; `WA_NOTIFICATION_ENDPOINT` opsional bila alamatnya berbeda.
+4. Hubungkan chat dan aktifkan fitur yang diinginkan di pengaturan pengguna.
+
+Konektor memeriksa antrean setiap menit. Function memeriksa status akun, pasangan chat, preferensi, dan jatuh tempo sebelum memberikan lease pengiriman. Dokumen `waNotificationDeliveries` dan `waReportContexts` hanya diakses oleh server. Identitas pengiriman tetap per bulan/jatuh tempo; log lokal `notifications-sent.jsonl` mencegah kirim ulang setelah ACK gagal atau restart. Seperti pengiriman eksternal lain, masih ada celah duplikasi jika proses mati tepat setelah WhatsApp menerima pesan tetapi sebelum log lokal tersimpan; pengiriman tidak diklaim exactly-once.
+
+Pengujian lokal tanpa mengirim pesan nyata:
+
+```bash
+node --test scripts/*.test.mjs
+node scripts/assistant-ui-qa.mjs
+```
+
+Uji UI memerlukan Vite di `http://127.0.0.1:5173` dan Chrome lokal; alamat dapat diganti dengan `QA_URL`, executable dengan `CHROME_PATH`. Di direktori `whatsapp-service`, jalankan `npm test` untuk menguji pengiriman dan pemulihan antrean dengan konektor palsu.
+
 ## Admin dan provisioning pengguna
 
 Pendaftaran publik dinonaktifkan. Route `/register` diarahkan ke `/login`, sedangkan akun pengguna dibuat oleh admin melalui `/admin`. Operasi daftar, pembuatan, aktivasi/nonaktivasi, dan reset password berjalan di Netlify Function `admin-users`; Firebase Admin SDK tidak pernah dimuat ke browser.

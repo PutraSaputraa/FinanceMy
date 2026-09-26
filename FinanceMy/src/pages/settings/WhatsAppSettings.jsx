@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { CheckCircle2, Copy, Link2, MessageCircle, Unplug } from 'lucide-react'
 import { createWhatsAppPairingCode, disconnectWhatsApp, getWhatsAppConnection } from '../../services/whatsappLinkService'
 import WhatsAppDrafts from './WhatsAppDrafts'
+import AssistantSettings from './AssistantSettings'
 
 export default function WhatsAppSettings({ user }) {
   const [connection, setConnection] = useState(null)
@@ -95,6 +96,7 @@ export default function WhatsAppSettings({ user }) {
             <p>Saran dan simulasi tidak mengubah data. Transaksi teks dan hasil pembacaan struk tetap menjadi draf sampai kamu membalas SUBMIT.</p>
           </div>}
         </div>}
+    <AssistantSettings connected={connection?.connected}/>
     <WhatsAppDrafts user={user}/>
   </>
 }

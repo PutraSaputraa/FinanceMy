@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, Timestamp, updateDoc } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { budgetMonthKey, budgetPeriodKey } from '../utils/budgets'
 import { buildRecurringPayment, recurringDueDate } from '../utils/recurring'
@@ -8,6 +8,24 @@ export function subscribeCollection(userId, collectionName, callback, sortField,
   const ref = collection(db, 'users', userId, collectionName)
   const q = sortField ? query(ref, orderBy(sortField, 'desc')) : ref
   return onSnapshot(q, (snapshot) => callback(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }))), onError)
+}
+
+export async function createTaxonomyRecord(userId, collectionName, record) {
+  const { id, ...values } = record
+  const ref = doc(db, 'users', userId, collectionName, id)
+  return runTransaction(db, async (transaction) => {
+    if ((await transaction.get(ref)).exists()) throw new Error('Nama ini sudah tersedia. Muat ulang daftar.')
+    transaction.set(ref, { ...values, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+  })
+}
+
+export async function saveUserSettings(userId, id, values) {
+  return setDoc(doc(db, 'users', userId, 'settings', id), { ...values, updatedAt: serverTimestamp() }, { merge: true })
+}
+
+export async function setTaxonomyActive(userId, collectionName, record, isActive) {
+  const { id, ...values } = record
+  return setDoc(doc(db, 'users', userId, collectionName, id), { ...values, isActive, updatedAt: serverTimestamp() }, { merge: true })
 }
 
 export async function addAccount(userId, values) {

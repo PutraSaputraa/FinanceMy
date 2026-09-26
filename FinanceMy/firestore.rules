@@ -44,9 +44,23 @@ service cloud.firestore {
           && validAmount(request.resource.data, 'amount') && request.resource.data.amount > 0
           && request.resource.data.method in ['fixed', 'adaptive', 'rollover', 'saving', 'hybrid'];
       }
+      match /categories/{categoryId} {
+        allow read: if activeOwner(userId);
+        allow create, update: if activeOwner(userId) && validName(request.resource.data)
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.type in ['income', 'expense']
+          && request.resource.data.isActive is bool;
+      }
+      match /tags/{tagId} {
+        allow read: if activeOwner(userId);
+        allow create, update: if activeOwner(userId) && validName(request.resource.data)
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.type == 'tag'
+          && request.resource.data.isActive is bool;
+      }
       match /{collection}/{documentId} {
         allow read, write: if activeOwner(userId)
-          && collection in ['categories', 'recurringTransactions', 'bills', 'subscriptions', 'goals', 'debts', 'receivables', 'installments', 'notifications', 'allocationTemplates', 'wishlists', 'sharedExpenses', 'settings'];
+          && collection in ['recurringTransactions', 'bills', 'subscriptions', 'goals', 'debts', 'receivables', 'installments', 'notifications', 'allocationTemplates', 'wishlists', 'sharedExpenses', 'settings'];
       }
     }
   }

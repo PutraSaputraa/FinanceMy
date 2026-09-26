@@ -19,7 +19,7 @@ export function chatCommand(text) {
   return { kind: 'other' }
 }
 
-export function simpleRevision(parsed, text) {
+export function simpleRevision(parsed, text, choices = {}) {
   const value = String(text || '').trim()
   let match = value.match(/^akun(?: sumber dana)?\s+(.+)$/i)
   if (match) return { ...parsed, accountHint: match[1].trim().slice(0, 80) }
@@ -41,7 +41,7 @@ export function simpleRevision(parsed, text) {
   }
   match = value.match(/^kategori\s+(.+)$/i)
   if (match) {
-    const categories = parsed.type === 'income' ? incomeCategories : expenseCategories
+    const categories = choices[parsed.type] || (parsed.type === 'income' ? incomeCategories : expenseCategories)
     const category = categories.find((item) => normalized(item) === normalized(match[1]))
     return category ? { ...parsed, category } : null
   }

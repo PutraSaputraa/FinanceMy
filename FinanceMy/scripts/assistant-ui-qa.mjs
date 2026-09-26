@@ -1,0 +1,105 @@
+import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
+import { chromium } from 'playwright-core'
+import { jakartaDateKey, monthOffset } from '../src/utils/assistantReports.js'
+
+const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true })
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+const errors = []
+page.on('pageerror', (error) => errors.push(error.message))
+const go = async (path) => {
+  if (page.viewportSize().width < 821) await page.getByRole('button', { name: 'Buka menu', exact: true }).click()
+  await page.locator(`.side-nav a[href="${path}"]`).click()
+  await page.waitForURL(`**${path}`)
+}
+const add = async (kind, name) => {
+  await page.getByRole('button', { name: `Tambah ${kind}`, exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel(`Nama ${kind}`).fill(name)
+  await dialog.getByRole('button', { name: 'Simpan', exact: true }).click()
+  await dialog.waitFor({ state: 'hidden' })
+}
+const previousMonth = monthOffset(jakartaDateKey().slice(0, 7), -1)
+
+try {
+  await mkdir('artifacts', { recursive: true })
+  await page.goto(process.env.QA_URL || 'http://127.0.0.1:5173/login', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Lihat dashboard demo' }).click()
+  await page.waitForURL('**/dashboard')
+  await go('/pengaturan')
+  await page.getByRole('button', { name: 'Kategori & tag', exact: true }).click()
+  await add('kategori', 'Pendidikan')
+  await page.getByRole('button', { name: 'Tambah kategori', exact: true }).click()
+  await page.getByRole('dialog').getByLabel('Nama kategori').fill('  PENDIDIKAN  ')
+  await page.getByRole('dialog').getByRole('button', { name: 'Simpan', exact: true }).click()
+  await page.getByRole('alert').filter({ hasText: 'sudah tersedia' }).waitFor()
+  await page.getByRole('dialog').getByRole('button', { name: 'Batal' }).click()
+  await page.getByRole('button', { name: 'Pemasukan', exact: true }).click()
+  await add('kategori', 'Royalti')
+  await page.getByRole('button', { name: 'Tag', exact: true }).click()
+  await add('tag', 'Kuliah')
+  await add('tag', 'Pribadi')
+  await page.getByRole('button', { name: 'Pengeluaran', exact: true }).click()
+  await page.screenshot({ path: 'artifacts/categories-desktop.png', fullPage: true })
+
+  await go('/transaksi')
+  await page.getByRole('button', { name: 'Tambah transaksi', exact: true }).last().click()
+  let dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Nama pengeluaran').fill('Buku kuliah QA')
+  await dialog.getByLabel('Nominal (Rp)').fill('100000')
+  await dialog.getByRole('combobox', { name: /^Kategori/ }).selectOption('Pendidikan')
+  await dialog.getByLabel('Tanggal', { exact: true }).fill(`${previousMonth}-15`)
+  await dialog.getByLabel('Kuliah', { exact: true }).check()
+  await dialog.getByLabel('Pribadi', { exact: true }).check()
+  await dialog.getByRole('button', { name: 'Simpan transaksi', exact: true }).click()
+  await dialog.waitFor({ state: 'hidden' })
+  await page.getByPlaceholder('Cari transaksi...').fill('Kuliah')
+  await page.getByRole('button', { name: 'Edit transaksi Buku kuliah QA', exact: true }).waitFor()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await go('/pengaturan')
+  await page.getByRole('button', { name: 'Kategori & tag', exact: true }).click()
+  await page.getByLabel('Aktifkan Pendidikan', { exact: true }).uncheck()
+  assert.equal(await page.getByLabel('Aktifkan Pendidikan', { exact: true }).isChecked(), false)
+  await page.screenshot({ path: 'artifacts/categories-mobile.png', fullPage: true })
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'settings overflow on mobile')
+
+  await go('/transaksi')
+  await page.getByRole('button', { name: 'Edit transaksi Buku kuliah QA', exact: true }).click()
+  dialog = page.getByRole('dialog')
+  assert.equal(await dialog.getByRole('combobox', { name: /^Kategori/ }).inputValue(), 'Pendidikan')
+  assert.equal(await dialog.getByLabel('Kuliah', { exact: true }).isChecked(), true)
+  assert.equal(await dialog.getByLabel('Pribadi', { exact: true }).isChecked(), true)
+  await dialog.getByRole('button', { name: 'Batal', exact: true }).click()
+  await page.getByRole('button', { name: 'Tambah transaksi', exact: true }).last().click()
+  dialog = page.getByRole('dialog')
+  assert.ok(!(await dialog.getByRole('combobox', { name: /^Kategori/ }).locator('option').allTextContents()).includes('Pendidikan'))
+  await dialog.getByRole('button', { name: 'Pemasukan', exact: true }).click()
+  assert.ok((await dialog.getByRole('combobox', { name: /^Kategori/ }).locator('option').allTextContents()).includes('Royalti'))
+  await dialog.getByRole('button', { name: 'Batal', exact: true }).click()
+
+  await go('/pengaturan')
+  await page.getByRole('button', { name: 'WhatsApp', exact: true }).click()
+  await page.getByLabel('Ringkasan bulanan', { exact: false }).check()
+  await page.getByLabel('Pengingat transaksi rutin', { exact: false }).check()
+  await page.getByLabel('Waktu pengingat').selectOption('3')
+  await page.screenshot({ path: 'artifacts/assistant-settings-mobile.png', fullPage: true })
+  await go('/laporan')
+  await page.getByRole('heading', { name: 'Ringkasan bulanan Myoui' }).waitFor()
+  await page.getByRole('button', { name: 'Lihat rincian bulanan' }).click()
+  await page.locator('.monthly-category').filter({ hasText: 'Pendidikan' }).waitFor()
+  assert.match(await page.locator('.monthly-message').textContent(), /Rp100\.000/)
+  await page.screenshot({ path: 'artifacts/monthly-report-mobile.png', fullPage: true })
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'report overflow on mobile')
+
+  await go('/pengaturan')
+  await page.getByRole('button', { name: 'WhatsApp', exact: true }).click()
+  assert.equal(await page.getByLabel('Ringkasan bulanan', { exact: false }).isChecked(), true)
+  assert.equal(await page.getByLabel('Waktu pengingat').inputValue(), '3')
+  assert.deepEqual(errors, [])
+  console.log('PASS: custom expense/income categories, duplicate validation, multiple tags, archive/history, mobile layouts, monthly details and assistant preferences.')
+} catch (error) {
+  console.error(await page.getByRole('dialog').allTextContents())
+  await page.screenshot({ path: 'artifacts/assistant-qa-failure.png', fullPage: true })
+  throw error
+} finally { await browser.close() }

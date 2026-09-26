@@ -5,6 +5,7 @@ import ProgressBar from '../../components/common/ProgressBar'
 import { useFinance } from '../../context/FinanceContext'
 import { buildCategoryData, buildMonthlyCashFlow, getMonthInfo, getPeriodSummary, percentageChange } from '../../utils/analytics'
 import { formatCompact, formatCurrency } from '../../utils/formatters'
+import MonthlyReport from './MonthlyReport'
 
 export default function ReportsPage() {
   const { accounts, transactions, bills } = useFinance()
@@ -29,6 +30,7 @@ export default function ReportsPage() {
 
   return <>
     <PageTitle eyebrow="ANALISIS KEUANGAN" title="Laporan" subtitle="Lihat pola, bandingkan periode, dan pahami kebiasaanmu." action={<div className="page-actions"><button className="period-select"><CalendarDays/>6 bulan terakhir<ChevronDown/></button><button className="secondary-btn"><Download/>Ekspor</button></div>}/>
+    <MonthlyReport/>
     <section className="report-metrics">
       <article><span>Total pemasukan</span><strong>{formatCurrency(totalIncome)}</strong><p className={percentageChange(current.income, previous.income) >= 0 ? 'positive' : 'negative'}><TrendingUp/> {Math.abs(percentageChange(current.income, previous.income))}% dari bulan lalu</p></article>
       <article><span>Total pengeluaran</span><strong>{formatCurrency(totalExpense)}</strong><p className={percentageChange(current.expense, previous.expense) <= 0 ? 'positive' : 'negative'}><TrendingDown/> {Math.abs(percentageChange(current.expense, previous.expense))}% dari bulan lalu</p></article>
