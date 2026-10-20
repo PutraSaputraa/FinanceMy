@@ -1,0 +1,625 @@
+[
+  {
+    "name": "dashboard",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaksi",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "akun",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "budget",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "rutin",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "target",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "utang",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "laporan",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "pengaturan",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-preferences",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-categories",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-whatsapp",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "dashboard",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaksi",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "akun",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "budget",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "rutin",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "target",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "utang",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "laporan",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "pengaturan",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-preferences",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-categories",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-whatsapp",
+    "width": 360,
+    "documentWidth": 360,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "dashboard",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaksi",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "akun",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "budget",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "rutin",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "target",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "utang",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "laporan",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "pengaturan",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-preferences",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-categories",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-whatsapp",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "dashboard",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaksi",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "akun",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "budget",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "rutin",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "target",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "utang",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "laporan",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "pengaturan",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-preferences",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-categories",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-whatsapp",
+    "width": 430,
+    "documentWidth": 430,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "dashboard",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaksi",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "akun",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "budget",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "rutin",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "target",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "utang",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "laporan",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "pengaturan",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-preferences",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-categories",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-whatsapp",
+    "width": 768,
+    "documentWidth": 768,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "dashboard",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaksi",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "akun",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "budget",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "rutin",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "target",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "utang",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "laporan",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "pengaturan",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-preferences",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-categories",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "settings-whatsapp",
+    "width": 1440,
+    "documentWidth": 1440,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaction-filter-collapsed",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-transaction",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-account",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-budget",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-goal",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-recurring",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-debt",
+    "width": 320,
+    "documentWidth": 320,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaction-filter-collapsed",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-transaction",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-account",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-budget",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-goal",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-recurring",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "form-debt",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "dashboard-dark",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "transaksi-dark",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  },
+  {
+    "name": "laporan-dark",
+    "width": 390,
+    "documentWidth": 390,
+    "moneyIssues": [],
+    "overflowing": []
+  }
+]

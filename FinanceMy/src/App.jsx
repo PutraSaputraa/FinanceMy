@@ -5,6 +5,7 @@ import AppLayout from './components/layout/AppLayout'
 import brandLogo from './assets/financemy-logo-mark.png'
 import './App.css'
 import './premium.css'
+import './mobile.css'
 
 const LandingPage = lazy(() => import('./pages/landing/LandingPage'))
 const AuthPage = lazy(() => import('./pages/auth/AuthPage'))

@@ -12,6 +12,9 @@
 .history-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 12px; }
 .history-search button { display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); }
 .history-search:focus-within { border-color: var(--emerald); }
+.history-filter-toggle { display: none; }
+.history-extra-filters { display: flex; align-items: center; gap: 14px; margin-top: 13px; }
+.history-extra-filters .history-types { padding-top: 0; flex: 1; }
 .history-account select { width: 160px; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 11px; }
 .history-types { display: flex; overflow-x: auto; gap: 5px; padding-top: 13px; }
 .history-types button { padding: 8px 14px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 11px; white-space: nowrap; }

@@ -3,6 +3,7 @@ import { differenceInCalendarMonths } from 'date-fns'
 import { CalendarDays, Home, Landmark, Laptop, Pencil, Plus, ShieldCheck, Sparkles, Trash2 } from 'lucide-react'
 import Modal from '../../components/common/Modal'
 import PageTitle from '../../components/common/PageTitle'
+import ExplainerCard from '../../components/common/ExplainerCard'
 import ProgressBar from '../../components/common/ProgressBar'
 import GoalForm from '../../components/forms/GoalForm'
 import { useFinance } from '../../context/FinanceContext'
@@ -44,7 +45,7 @@ export default function GoalsPage() {
 
   return <>
     <PageTitle eyebrow="MASA DEPAN" title="Target keuangan" subtitle="Pantau tujuan secara otomatis dari saldo akun yang kamu pilih." action={<button className="primary-btn" onClick={() => setEditing('new')}><Plus/>Tambah target</button>}/>
-    <section className="goal-explainer card" aria-label="Cara kerja target keuangan"><strong>Cara kerja target</strong><p>Setiap target terhubung ke satu akun tujuan. Saldo akun menjadi dana terkumpul dan progres berubah otomatis saat ada transaksi atau transfer. Satu akun hanya dapat dipakai oleh satu target aktif.</p></section>
+    <ExplainerCard className="goal-explainer" title="Cara kerja target"><p>Setiap target terhubung ke satu akun tujuan. Saldo akun menjadi dana terkumpul dan progres berubah otomatis saat ada transaksi atau transfer. Satu akun hanya dapat dipakai oleh satu target aktif.</p></ExplainerCard>
     <section className="goal-highlight"><div><span><Sparkles/>PROGRES KESELURUHAN</span><h2>Saldo akun tujuan mencapai <em>{formatCurrency(totalSaved)}</em></h2><p>dari total target {formatCurrency(totalTarget)} di {goals.length} tujuan aktif.</p></div><div className="goal-ring"><strong>{Math.round(progress)}%</strong><span>tercapai</span></div></section>
     {goals.length ? <div className="goals-grid">{goals.map((item) => {
       const Icon = iconMap[item.icon] || ShieldCheck

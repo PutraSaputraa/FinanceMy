@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigationType } from 'react-router-dom'
-import { ArrowDownLeft, ArrowLeft, ArrowUpRight, Download, Plus, ReceiptText, Search, Wallet, X } from 'lucide-react'
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, Download, Plus, ReceiptText, Search, SlidersHorizontal, Wallet, X } from 'lucide-react'
 import PageTitle from '../../components/common/PageTitle'
 import DatePeriodFilter from '../../components/common/DatePeriodFilter'
 import Modal from '../../components/common/Modal'
@@ -25,6 +25,7 @@ export default function TransactionsPage() {
   const [deleting, setDeleting] = useState(null)
   const [deleteError, setDeleteError] = useState('')
   const [deletingBusy, setDeletingBusy] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const searchInput = useRef(null)
   const navigationType = useNavigationType()
   useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }) }, [])
@@ -37,6 +38,7 @@ export default function TransactionsPage() {
   const type = params.get('type') || 'all'
   const account = params.get('account') || ''
   const category = params.get('category') || ''
+  const extraFilterCount = Number(Boolean(account)) + Number(type !== 'all')
   const reportSearch = typeof location.state?.reportSearch === 'string' ? location.state.reportSearch : setPeriodParams(new URLSearchParams(), period).toString()
   useEffect(() => {
     // Keep typing immediate while URL navigation renders in a transition.
@@ -93,9 +95,12 @@ export default function TransactionsPage() {
       <DatePeriodFilter value={period} onChange={(patch) => setParams((current) => { const value = periodFromParams(current, dateKey); return setPeriodParams(current, { ...value, ...(typeof patch === 'function' ? patch(value) : patch) }) })} error={range.error}/>
       <div className="history-search-row">
         <label className="history-search"><Search size={17}/><input ref={searchInput} aria-label="Cari transaksi" defaultValue={query} onChange={(event) => changeParam('search', event.target.value)} placeholder="Cari transaksi..."/>{query && <button type="button" onClick={() => changeParam('search', '')} aria-label="Hapus pencarian"><X size={15}/></button>}</label>
-        <label className="history-account"><Wallet size={16}/><select aria-label="Filter akun" value={account} onChange={(event) => changeParam('account', event.target.value)}><option value="">Semua akun</option>{accountNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <button type="button" className="history-filter-toggle" aria-expanded={filtersOpen} aria-controls="history-extra-filters" onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={16}/>Filter{extraFilterCount > 0 && <span>{extraFilterCount}</span>}</button>
       </div>
-      <div className="history-types" role="group" aria-label="Jenis transaksi">{[['all', 'Semua'], ['income', 'Pemasukan'], ['expense', 'Pengeluaran'], ['transfer', 'Transfer'], ['adjustment', 'Penyesuaian']].map(([value, label]) => <button type="button" key={value} aria-pressed={type === value} className={type === value ? 'active' : ''} onClick={() => changeParam('type', value === 'all' ? '' : value)}>{label}</button>)}</div>
+      <div id="history-extra-filters" className={`history-extra-filters${filtersOpen ? ' is-open' : ''}`}>
+        <label className="history-account"><Wallet size={16}/><select aria-label="Filter akun" value={account} onChange={(event) => changeParam('account', event.target.value)}><option value="">Semua akun</option>{accountNames.map((name) => <option key={name}>{name}</option>)}</select></label>
+        <div className="history-types" role="group" aria-label="Jenis transaksi">{[['all', 'Semua'], ['income', 'Pemasukan'], ['expense', 'Pengeluaran'], ['transfer', 'Transfer'], ['adjustment', 'Penyesuaian']].map(([value, label]) => <button type="button" key={value} aria-pressed={type === value} className={type === value ? 'active' : ''} onClick={() => changeParam('type', value === 'all' ? '' : value)}>{label}</button>)}</div>
+      </div>
       {category && <button className="history-filter-chip" onClick={() => changeParam('category', '')}>Kategori: {category}<X size={13}/><span className="sr-only">Hapus filter kategori</span></button>}
     </section>
     {!range.error && <>

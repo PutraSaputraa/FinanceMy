@@ -82,6 +82,20 @@ node scripts/history-reports-ui-qa.mjs
 
 Uji UI memerlukan Vite pada `http://127.0.0.1:5173`; `QA_URL` dan `CHROME_PATH` dapat digunakan untuk mengganti alamat dan executable Chrome.
 
+## Tampilan mobile
+
+Layout mobile memakai header ringkas, ringkasan transaksi dalam baris penuh, nominal Rupiah yang tetap utuh, serta kontrol dan input yang lebih mudah disentuh. Pada halaman Transaksi, tombol **Filter** membuka pilihan akun dan jenis transaksi; periode serta pencarian tetap langsung tersedia. Panduan budget dan target dapat dibuka melalui **Lihat panduan**. Pengaturan menampilkan seluruh bagian dalam grid, dan tabel laporan dapat digeser ke samping.
+
+Aturan responsive bersama berada di `src/mobile.css`. Perubahan hanya memengaruhi tampilan dan interaksi antarmuka, termasuk penguncian scroll halaman di belakang dialog.
+
+Jalankan Vite lalu periksa tampilan dengan data demo, termasuk nominal jutaan dan nama transaksi panjang:
+
+```bash
+node scripts/mobile-ui-qa.mjs
+```
+
+Pemeriksaan mencakup sembilan halaman utama, bagian pengaturan, formulir, filter mobile, dan mode gelap pada lebar 320, 360, 390, 430, 768, dan 1440 px. Nominal tidak boleh pecah ke beberapa baris atau terpotong. Tombol simpan formulir juga diperiksa pada tinggi viewport 500 px. `MOBILE_QA_CAPTURE=1` menyimpan screenshot ke `artifacts/mobile/`; `QA_URL` dan `CHROME_PATH` dapat mengganti alamat dan executable Chrome.
+
 ## Cara kerja budget
 
 Budget baru memiliki nama bebas dan berlaku pada bulan berjalan. Saat mencatat pengeluaran atau refund, pengguna dapat memilih satu budget aktif bulan transaksi tersebut atau **Tanpa budget**. Kategori transaksi tetap dipakai untuk laporan dan tidak otomatis menentukan budget. Pilihan yang sama tersedia saat membayar transaksi rutin; budget dihitung berdasarkan tanggal pembayaran. Transaksi baru menyimpan `budgetId` secara eksplisit, termasuk `null` untuk Tanpa budget.
