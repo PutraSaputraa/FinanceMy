@@ -65,6 +65,23 @@ npm run build
 
 Hasil build berada di folder `dist/`.
 
+## Riwayat transaksi dan laporan
+
+Halaman **Transaksi** mengelompokkan riwayat dalam kartu per hari, dari tanggal terbaru. Pilih **Semua waktu**, **Bulanan**, atau **Rentang tanggal**. Rentang mencakup kedua tanggal batas, termasuk lintas bulan atau tahun, misalnya 20 Februari sampai 5 Maret. Pencarian, jenis transaksi, akun sumber/tujuan, dan filter kategori dari laporan dapat digabungkan. Ringkasan dan **Ekspor CSV** mengikuti transaksi yang ditampilkan. CSV mendukung koma, tanda kutip, dan baris baru dalam nama/catatan. Filter tersimpan di URL agar tautan rincian dapat dibuka kembali.
+
+Halaman **Laporan keuangan** memakai satu periode untuk ringkasan, grafik arus kas/akumulasi, kategori, rincian per hari/minggu/bulan/tahun, pengeluaran terbesar, dan ekspor. Klik kategori atau tanggal untuk membuka transaksi terkait. Bulan berjalan dihitung sampai hari ini dan dibandingkan dengan tanggal yang sama pada bulan sebelumnya, dibatasi hari terakhir bulan tersebut. Bulan selesai memakai seluruh bulan sebelumnya; rentang khusus memakai rentang tepat sebelumnya dengan jumlah hari yang sama. Semua waktu tidak memakai pembanding. Tidak ada persentase pertumbuhan jika nilai pembanding nol atau negatif. Rata-rata memakai seluruh hari dalam rentang, termasuk hari tanpa transaksi.
+
+Pengeluaran bersih mencakup biaya admin transfer dan dikurangi refund. Pokok transfer dan rekonsiliasi saldo dikecualikan dari arus kas. Nilai kategori dijumlahkan sebelum ditampilkan sehingga refund bersih dapat bernilai negatif dan hasilnya tidak tergantung urutan transaksi. **Arus kas bersih** adalah pemasukan dikurangi pengeluaran, bukan saldo atau tabungan. Pratinjau bulanan Myoui tersedia di bagian bawah laporan, dengan pemilihan bulan selesai yang terpisah dan tombol salin teks. Semua kategori pada laporan utama maupun rincian bulanan dapat diklik untuk membuka halaman Transaksi dengan kategori dan tanggal yang sesuai. Rincian kategori menampilkan pengeluaran sebelum refund, refund, dan pengeluaran bersih. Tombol **Kembali ke laporan** mengembalikan periode asal, termasuk pilihan bulan dan rincian Myoui. Mode sembunyikan nominal juga menyamarkan transaksi, rincian laporan, serta pratinjau pesan dan grafik.
+
+Uji alur transaksi/laporan melalui browser lokal tanpa mengubah data Firebase atau mengirim WhatsApp:
+
+```bash
+node --test scripts/transaction-history.test.mjs
+node scripts/history-reports-ui-qa.mjs
+```
+
+Uji UI memerlukan Vite pada `http://127.0.0.1:5173`; `QA_URL` dan `CHROME_PATH` dapat digunakan untuk mengganti alamat dan executable Chrome.
+
 ## Cara kerja budget
 
 Budget baru memiliki nama bebas dan berlaku pada bulan berjalan. Saat mencatat pengeluaran atau refund, pengguna dapat memilih satu budget aktif bulan transaksi tersebut atau **Tanpa budget**. Kategori transaksi tetap dipakai untuk laporan dan tidak otomatis menentukan budget. Pilihan yang sama tersedia saat membayar transaksi rutin; budget dihitung berdasarkan tanggal pembayaran. Transaksi baru menyimpan `budgetId` secara eksplisit, termasuk `null` untuk Tanpa budget.

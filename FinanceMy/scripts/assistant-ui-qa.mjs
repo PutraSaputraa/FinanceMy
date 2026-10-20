@@ -86,6 +86,7 @@ try {
   await page.screenshot({ path: 'artifacts/assistant-settings-mobile.png', fullPage: true })
   await go('/laporan')
   await page.getByRole('heading', { name: 'Ringkasan bulanan Myoui' }).waitFor()
+  await page.getByRole('button', { name: 'Buka pratinjau', exact: true }).click()
   await page.getByRole('button', { name: 'Lihat rincian bulanan' }).click()
   await page.locator('.monthly-category').filter({ hasText: 'Pendidikan' }).waitFor()
   assert.match(await page.locator('.monthly-message').textContent(), /Rp100\.000/)
