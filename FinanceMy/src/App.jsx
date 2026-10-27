@@ -24,10 +24,24 @@ const AdminPage = lazy(() => import('./pages/admin/AdminPage'))
 function LoadingScreen() { return <div className="loading-screen"><div className="brand-loader"><img src={brandLogo} alt=""/></div><span>Menyiapkan FinanceMy...</span></div> }
 function Protected({ children }) { const { user, loading } = useAuth(); if (loading) return <LoadingScreen/>; return user ? children : <Navigate to="/login" replace/> }
 
+function LoginRoute() {
+  const { user, loading } = useAuth()
+  if (loading) return <LoadingScreen/>
+  return user ? <Navigate to="/dashboard" replace/> : <AuthPage mode="login"/>
+}
+
+function HomeRoute() {
+  const { user, loading } = useAuth()
+  const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+  if (!installed) return <LandingPage/>
+  if (loading) return <LoadingScreen/>
+  return <Navigate to={user ? '/dashboard' : '/login'} replace/>
+}
+
 export default function App() {
   return <Suspense fallback={<LoadingScreen/>}><Routes>
-    <Route path="/" element={<LandingPage/>}/>
-    <Route path="/login" element={<AuthPage mode="login"/>}/>
+    <Route path="/" element={<HomeRoute/>}/>
+    <Route path="/login" element={<LoginRoute/>}/>
     <Route path="/register" element={<Navigate to="/login" replace/>}/>
     <Route path="/lupa-password" element={<AuthPage mode="forgot"/>}/>
     <Route path="/admin" element={<AdminPage/>}/>

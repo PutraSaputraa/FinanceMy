@@ -11,14 +11,22 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => onAuthStateChanged(auth, (firebaseUser) => {
-    if (firebaseUser) setUser(firebaseUser)
+    if (firebaseUser) {
+      sessionStorage.removeItem('financemy-demo')
+      setUser(firebaseUser)
+    }
     else if (!sessionStorage.getItem('financemy-demo')) setUser(null)
     setLoading(false)
   }), [])
 
   const value = useMemo(() => ({
     user, loading,
-    login: async (email, password) => { const result = await loginUser(email, password); setUser(result.user); return result },
+    login: async (email, password) => {
+      const result = await loginUser(email, password)
+      sessionStorage.removeItem('financemy-demo')
+      setUser(result.user)
+      return result
+    },
     resetPassword,
     demoLogin: async () => {
       if (auth.currentUser) await logoutUser()

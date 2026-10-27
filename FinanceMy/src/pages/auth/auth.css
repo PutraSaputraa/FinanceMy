@@ -1,0 +1,178 @@
+.auth-reference-page {
+  min-height: 100svh;
+  background: var(--surface);
+}
+
+.auth-reference-visual { min-height: 100svh; }
+.auth-reference-form-wrap { min-width: 0; }
+.auth-brand > div { white-space: nowrap; }
+
+.auth-reference-page .auth-session-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.auth-session-note svg { color: var(--emerald); }
+.auth-reference-page .reference-input { border-color: var(--line); }
+.auth-reference-page .reference-input.invalid { border-color: var(--red, #c94343); }
+.auth-reference-page .reference-input:focus-within { border-color: var(--emerald); }
+.auth-reference-page .reference-input button { min-width: 44px; height: 44px; margin-right: -10px; }
+.auth-reference-page .reference-demo { border-color: var(--line); }
+.auth-reference-page .reference-divider::before,
+.auth-reference-page .reference-divider::after { background: var(--line); }
+.auth-reference-page .form-feedback,
+.auth-reference-page .field-error { font-size: 12px; line-height: 1.6; }
+
+.reference-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 22px;
+  color: var(--emerald);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-reference-page :is(a, button):focus-visible {
+  outline: 3px solid var(--emerald);
+  outline-offset: 4px;
+}
+
+@media (max-width: 850px) {
+  .auth-reference-page {
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    background:
+      radial-gradient(ellipse at 100% 0%, rgba(77, 190, 143, .25), transparent 58%),
+      radial-gradient(ellipse at 0% 80%, rgba(42, 153, 112, .22), transparent 56%),
+      linear-gradient(155deg, #092f29, #124b3e 55%, #072d26);
+  }
+
+  .auth-reference-page::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, .035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: linear-gradient(135deg, #000, transparent 55%, rgba(0, 0, 0, .45));
+  }
+
+  .auth-reference-page::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    width: 440px;
+    height: 440px;
+    left: -280px;
+    bottom: -90px;
+    border: 1px solid rgba(157, 226, 190, .09);
+    border-radius: 50%;
+    box-shadow: 0 0 0 64px rgba(157, 226, 190, .025), 0 0 0 128px rgba(157, 226, 190, .02);
+    pointer-events: none;
+  }
+
+  .auth-reference-page .auth-reference-visual {
+    display: flex;
+    min-height: 0;
+    padding: max(26px, env(safe-area-inset-top)) max(24px, calc((100vw - 440px) / 2)) 60px;
+    background: transparent;
+  }
+
+  .auth-reference-page .auth-reference-visual::before,
+  .auth-reference-page .auth-reference-visual::after { content: none; }
+  .auth-reference-page .auth-brand { gap: 10px; font-size: 21px; }
+  .auth-reference-page .auth-brand > span { width: 36px; height: 36px; border-radius: 11px; }
+  .auth-reference-page .auth-copy { max-width: 440px; margin: 22px 0 0; }
+  .auth-reference-page .auth-copy h1 { margin: 0; font-size: clamp(24px, 6.7vw, 32px); line-height: 1.22; letter-spacing: -1px; }
+  .auth-reference-page .auth-kicker,
+  .auth-reference-page .auth-copy > p,
+  .auth-reference-page .auth-benefits,
+  .auth-reference-page .auth-proof-card,
+  .auth-reference-page .auth-quote { display: none; }
+
+  .auth-reference-page .auth-product-art {
+    top: 10px;
+    right: max(6px, calc((100vw - 510px) / 2));
+    bottom: auto;
+    width: clamp(96px, 28vw, 130px);
+    max-width: none;
+    opacity: .85;
+    filter: drop-shadow(0 12px 18px rgba(0, 20, 14, .25));
+  }
+
+  .auth-reference-page .auth-reference-form-wrap {
+    position: relative;
+    z-index: 5;
+    display: block;
+    min-height: 0;
+    margin-top: -30px;
+    padding: 0 max(16px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: transparent;
+  }
+
+  .auth-reference-page .auth-reference-form-card {
+    width: min(480px, 100%);
+    max-width: none;
+    margin-inline: auto;
+    padding: 26px 24px 24px;
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    background: var(--surface);
+    box-shadow: 0 28px 70px rgba(0, 20, 14, .28), 0 3px 12px rgba(0, 20, 14, .1);
+  }
+
+  .auth-reference-page .reference-form-eyebrow { margin-bottom: 12px; font-size: 9px; line-height: 1.5; letter-spacing: 1.5px; color: var(--emerald); }
+  .auth-reference-page .auth-reference-form-card > h2 { margin-bottom: 8px; font-size: clamp(24px, 6.4vw, 30px); line-height: 1.2; letter-spacing: -.9px; }
+  .auth-reference-page .auth-reference-form-card > p:not(.auth-session-note) { margin: 0 0 24px; font-size: 13px; line-height: 1.6; }
+  .auth-reference-page .reference-auth-form { gap: 17px; }
+  .auth-reference-page .reference-auth-form > label { gap: 8px; font-size: 13px; line-height: 1.5; }
+  .auth-reference-page .reference-input { height: 54px; min-height: 54px; padding-inline: 13px; gap: 10px; border-radius: 12px; }
+  .auth-reference-page .reference-input input { width: 100%; font-size: 16px; font-weight: 400; }
+  .auth-reference-page .reference-input input::placeholder { font-size: 14px; color: var(--muted); }
+  .auth-reference-page .reference-forgot { top: 0; height: auto; margin-top: -9px; line-height: 1.5; }
+  .auth-reference-page .reference-forgot a { display: inline-flex; align-items: center; min-height: 32px; font-size: 12px; color: var(--emerald); }
+  .auth-reference-page .reference-submit { height: 54px; margin-top: -4px; font-size: 14px; border-radius: 12px; }
+  .auth-reference-page .auth-session-note { margin: 15px 0 0; font-size: 11px; }
+  .auth-reference-page .reference-divider { margin: 23px 0 16px; font-size: 11px; }
+  .auth-reference-page .reference-divider span { font-size: 11px; color: var(--muted); }
+  .auth-reference-page .reference-demo { height: 48px; font-size: 13px; border-radius: 12px; }
+  .auth-reference-page .reference-demo-note { margin-top: 12px; font-size: 10px; line-height: 1.6; color: var(--muted); }
+  [data-theme="dark"] .auth-reference-page {
+    background:
+      radial-gradient(ellipse at 100% 0%, rgba(50, 137, 101, .2), transparent 58%),
+      radial-gradient(ellipse at 0% 80%, rgba(32, 111, 81, .18), transparent 56%),
+      linear-gradient(155deg, #061f1a, #0b3128 55%, #041d18);
+  }
+}
+
+@media (max-width: 360px) {
+  .auth-reference-page .auth-reference-form-wrap { padding-inline: 12px; }
+  .auth-reference-page .auth-reference-form-card { padding: 24px 20px; border-radius: 21px; }
+}
+
+@media (max-width: 850px) and (max-height: 600px) {
+  .auth-reference-page .auth-reference-visual { padding-top: max(18px, env(safe-area-inset-top)); padding-bottom: 47px; }
+  .auth-reference-page .auth-copy { margin-top: 14px; }
+  .auth-reference-page .auth-copy h1 { font-size: 23px; }
+  .auth-reference-page .auth-product-art { width: 94px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-reference-page .reference-submit { transition: none; }
+  .auth-reference-page .reference-submit:hover { transform: none; }
+}

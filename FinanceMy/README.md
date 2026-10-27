@@ -84,6 +84,8 @@ Uji UI memerlukan Vite pada `http://127.0.0.1:5173`; `QA_URL` dan `CHROME_PATH` 
 
 ## Tampilan mobile
 
+Halaman login memakai latar gradasi hijau sepanjang halaman dengan pola tipis, logo dan ilustrasi FinanceMy, serta kartu formulir melayang di HP dan tablet. Input memakai ukuran teks 16 px untuk menghindari zoom otomatis pada browser mobile. Halaman login dan pemulihan password mendukung mode terang/gelap serta viewport pendek ketika keyboard terbuka.
+
 Layout mobile memakai header ringkas, ringkasan transaksi dalam baris penuh, nominal Rupiah yang tetap utuh, serta kontrol dan input yang lebih mudah disentuh. Pada halaman Transaksi, tombol **Filter** membuka pilihan akun dan jenis transaksi; periode serta pencarian tetap langsung tersedia. Panduan budget dan target dapat dibuka melalui **Lihat panduan**. Pengaturan menampilkan seluruh bagian dalam grid, dan tabel laporan dapat digeser ke samping.
 
 Aturan responsive bersama berada di `src/mobile.css`. Perubahan hanya memengaruhi tampilan dan interaksi antarmuka, termasuk penguncian scroll halaman di belakang dialog.
@@ -95,6 +97,20 @@ node scripts/mobile-ui-qa.mjs
 ```
 
 Pemeriksaan mencakup sembilan halaman utama, bagian pengaturan, formulir, filter mobile, dan mode gelap pada lebar 320, 360, 390, 430, 768, dan 1440 px. Nominal tidak boleh pecah ke beberapa baris atau terpotong. Tombol simpan formulir juga diperiksa pada tinggi viewport 500 px. `MOBILE_QA_CAPTURE=1` menyimpan screenshot ke `artifacts/mobile/`; `QA_URL` dan `CHROME_PATH` dapat mengganti alamat dan executable Chrome.
+
+## Sesi login
+
+Firebase Authentication menyimpan sesi di IndexedDB dengan fallback localStorage agar akun tetap masuk setelah browser atau aplikasi yang dipasang di HP ditutup. Halaman `/login` menunggu pemulihan sesi, lalu langsung membuka dashboard jika akun masih masuk. Aplikasi dalam mode standalone yang dibuka dari `/` juga langsung menuju dashboard atau login sesuai status sesi; beranda publik tetap tersedia di browser biasa.
+
+Logout mengakhiri sesi di perangkat tersebut. Login ulang masih diperlukan jika data situs dihapus, domain atau penyimpanan aplikasi berbeda, atau sesi dicabut. Password tidak disimpan oleh aplikasi. Mode demo tetap berlaku selama sesi tab dan dibersihkan ketika sesi akun asli dipulihkan.
+
+Jalankan Vite lalu uji tampilan, validasi, pemulihan password, demo, dan sesi login dengan Firebase SDK asli serta respons jaringan tiruan, tanpa akun atau data produksi:
+
+```bash
+node scripts/auth-ui-qa.mjs
+```
+
+Uji menutup seluruh proses browser dan membuka profil yang sama untuk memeriksa pemulihan sesi, shortcut `/login`, beranda aplikasi standalone, dan logout. Screenshot pada beberapa ukuran layar serta mode gelap disimpan di `artifacts/auth/`. `QA_URL` dan `CHROME_PATH` dapat digunakan seperti uji UI lainnya.
 
 ## Cara kerja budget
 
